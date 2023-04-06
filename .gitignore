@@ -1,0 +1,10 @@
+*.jar
+.bsp
+.idea
+project
+target
+simData
+simWorkspace
+tmp
+verilog
+/tmp/job_1/
