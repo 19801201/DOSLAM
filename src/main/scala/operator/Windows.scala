@@ -5,23 +5,24 @@ import spinal.lib._
 import spinal.lib.fsm._
 import wa.WaCounter
 
-case class WindowsConfig() {
+case class WindowsConfig(DATA_NUM : Int = 10, WINDOWS_SIZE_H : Int = 2, WINDOWS_SIZE_W : Int = 1, MEM_DEPTH : Int = 1024) {
   val DATA_WIDTH = 8
-  val DATA_STREAM_WIDTH = DATA_WIDTH * 8
+  val DATA_STREAM_WIDTH = DATA_WIDTH * DATA_NUM
   //输入像素的位宽
   val SIZE_WIDTH = 11
   //输入大小的位宽
-  val WINDOWS_SIZE = 2
   //窗口的大小
-  val MEM_DEPTH = 1024 //一行图像的个数
+  //一行图像的个数/8
   //MEM储存的深度
-  val MEM_NUM = WINDOWS_SIZE - 1
+  val MEM_NUM = WINDOWS_SIZE_H - 1
   //创建的MEM个数
 }
 class Windows(windowsConfig : WindowsConfig) extends Component{
+  val windowsConfig1 = windowsConfig
   val io = new Bundle {
-    val sData = slave Stream (Bits(windowsConfig.DATA_WIDTH bits))
-    val mData = master Stream (Vec(Vec(Bits(windowsConfig.DATA_WIDTH bits),windowsConfig.WINDOWS_SIZE), windowsConfig.WINDOWS_SIZE))
+    //增加运行速度，一次传输8个数据
+    val sData = slave Stream (Bits(windowsConfig.DATA_STREAM_WIDTH bits))
+    val mData = master Stream (Vec(Vec(Bits(windowsConfig.DATA_STREAM_WIDTH bits),windowsConfig.WINDOWS_SIZE_W), windowsConfig.WINDOWS_SIZE_H))
     //输入信号和输出信号，确保size*size个数据同时输出
     val start = in Bool()
     //开始信号
@@ -33,8 +34,8 @@ class Windows(windowsConfig : WindowsConfig) extends Component{
   }
   val valid1 = Reg(Bool()) init false
   //状态机，根据输出来定义状态，所有数据全部输出后进入END状态
-  io.rowNumOut := io.rowNumIn - (windowsConfig.WINDOWS_SIZE - 1)
-  io.colNumOut := io.colNumIn - (windowsConfig.WINDOWS_SIZE - 1)
+  io.rowNumOut := io.rowNumIn - (windowsConfig.WINDOWS_SIZE_H - 1)
+  io.colNumOut := io.colNumIn - (windowsConfig.WINDOWS_SIZE_W - 1)
   val fsm = new StateMachine {
     setEncoding(binaryOneHot)
     val IDLE = new State with EntryPoint
@@ -45,7 +46,8 @@ class Windows(windowsConfig : WindowsConfig) extends Component{
     //END状态，
 
     //在这里进行输入控制。a::一定是每来一个数据才曾加1
-    val colCnt = WaCounter(io.sData.fire, windowsConfig.SIZE_WIDTH, io.colNumIn - 1)
+    //一次输入八个数据这样可以更快的计算，
+    val colCnt = WaCounter(io.sData.fire, windowsConfig.SIZE_WIDTH - 3, io.colNumIn(windowsConfig.SIZE_WIDTH - 1 downto 3) - 1)
     val rowCnt = WaCounter(io.sData.fire && colCnt.valid, windowsConfig.SIZE_WIDTH, io.rowNumIn - 1)
     //流水线最后一个数据接收到的位置，根据这个位置判断当前计算结果是否满足需求
     val dataOut = Bool()
@@ -79,7 +81,7 @@ class Windows(windowsConfig : WindowsConfig) extends Component{
   //流水控制模块，因为这一层级内只有两级流水所以很好弄，只使用两级级流水，valid代表寄存器组模块是否有效，ready代表寄存器组模块是否能够接受数据
   //fire代表寄存器组模块成功接受到数据。
   //a:接收到第n-1行，第n-1个数据开始有效，这个数据可以输出第一个窗口
-  val dataValidIn = fsm.colCnt.count > (windowsConfig.WINDOWS_SIZE - 2) & fsm.rowCnt.count > (windowsConfig.WINDOWS_SIZE - 2)
+  val dataValidIn = fsm.colCnt.count >= (windowsConfig.WINDOWS_SIZE_W - 1) & fsm.rowCnt.count > (windowsConfig.WINDOWS_SIZE_H - 2)
   //输出第1个窗口时开始有效，需要等待数据一个周期
   val dataValidOut = RegNext(dataValidIn, io.sData.fire)
   //valid代表读数据模块是否有效，
@@ -95,22 +97,22 @@ class Windows(windowsConfig : WindowsConfig) extends Component{
   //1、当前处于激活状态，2、当前模块可接受数据 或 下一级模块可接受数据 》》 那么就可以接受上一级模块的数据
 
   //定义MEM模块，每个MEM用于储存一行的数据，
-  val windows = Vec(Vec(Reg(Bits(windowsConfig.DATA_WIDTH bits)) init 0, windowsConfig.WINDOWS_SIZE ), windowsConfig.WINDOWS_SIZE)
+  val windows = Vec(Vec(Reg(Bits(windowsConfig.DATA_STREAM_WIDTH bits)) init 0, windowsConfig.WINDOWS_SIZE_W ), windowsConfig.WINDOWS_SIZE_H)
   //定义地址模块，每次接收到一个数据地址加1，同时存到MEM和
   val rdAddr = fsm.colCnt.count //周期1：读取数据
-  val wrAddr = Reg(UInt(windowsConfig.SIZE_WIDTH bits)) init(0)
+  val wrAddr = Reg(UInt(windowsConfig.SIZE_WIDTH - 3 bits)) init(0)
   when(io.sData.fire){
     wrAddr := rdAddr
   }
-  val rdData = Vec(Bits(windowsConfig.DATA_WIDTH bits), windowsConfig.WINDOWS_SIZE)//读取的数据缓存一个周期
-  val wrData = Vec(Bits(windowsConfig.DATA_WIDTH bits), windowsConfig.WINDOWS_SIZE - 1)
-  for(i <- 0 until windowsConfig.WINDOWS_SIZE - 1){//写数据
+  val rdData = Vec(Bits(windowsConfig.DATA_STREAM_WIDTH bits), windowsConfig.WINDOWS_SIZE_H)//读取的数据缓存一个周期
+  val wrData = Vec(Bits(windowsConfig.DATA_STREAM_WIDTH bits), windowsConfig.WINDOWS_SIZE_H - 1)
+  for(i <- 0 until windowsConfig.WINDOWS_SIZE_H - 1){//写数据
     wrData(i) := windows(i + 1)(0)
   }//将上一个MEM读取的数据存入到下一个模块
-  rdData(windowsConfig.WINDOWS_SIZE - 1) := io.sData.payload //读数据
+  rdData(windowsConfig.WINDOWS_SIZE_H - 1) := io.sData.payload //读数据
   val mem = Array.tabulate(windowsConfig.MEM_NUM)(i => {
     def gen(): Mem[Bits] = {
-      val mem = Mem(Bits(windowsConfig.DATA_WIDTH bits), wordCount = windowsConfig.MEM_DEPTH).addAttribute("ram_style = \"block\"")
+      val mem = Mem(Bits(windowsConfig.DATA_STREAM_WIDTH bits), wordCount = windowsConfig.MEM_DEPTH).addAttribute("ram_style = \"block\"")
       mem.write(wrAddr.resized, wrData(i), io.sData.fire)
       //存入
       rdData(i) := mem.readAsync(rdAddr.resized)
@@ -121,9 +123,9 @@ class Windows(windowsConfig : WindowsConfig) extends Component{
     gen()
   })
   //windows模块，定义储存器。fire满足时不断向右驱动。
-  for(h <- 0 until  windowsConfig.WINDOWS_SIZE){
-    for(w <- 0 until  windowsConfig.WINDOWS_SIZE){
-      io.mData.payload(h)(windowsConfig.WINDOWS_SIZE - 1 - w) := windows(h)(w) //给下一级模块赋值
+  for(h <- 0 until  windowsConfig.WINDOWS_SIZE_H){
+    for(w <- 0 until  windowsConfig.WINDOWS_SIZE_W){
+      io.mData.payload(h)(windowsConfig.WINDOWS_SIZE_W - 1 - w) := windows(h)(w) //给下一级模块赋值
       if(w == 0){
         when(io.sData.fire){
           windows(h)(w) := rdData(h)

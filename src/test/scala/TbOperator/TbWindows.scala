@@ -6,9 +6,8 @@ import spinal.core._
 
 import java.io.{File, PrintWriter}
 import scala.io.Source
-
-class TbWindows extends Windows (WindowsConfig()) {
-  val size = 2;
+//测试通过 2 1 下一次测试，每五行删除一行数据
+class TbWindows(config : WindowsConfig = WindowsConfig()) extends Windows (config) {
   def toHexString(width: Int, b: BigInt): String = {
     var s = b.toString(16)
     if (s.length < width) {
@@ -28,15 +27,15 @@ class TbWindows extends Windows (WindowsConfig()) {
     //        io.enPadding(1) #= true
     //        io.enPadding(2) #= false
     //        io.enPadding(3) #= true
-    io.rowNumIn #= 50
-    io.colNumIn #= 50
+    io.rowNumIn #= 640
+    io.colNumIn #= 64 << 3
     clockDomain.waitSampling(10)
   }
 
   def in(src: String): Unit = {
     fork {
       for (line <- Source.fromFile(src).getLines) {
-        io.sData.payload #= Integer.parseInt(line.trim, 16)
+        io.sData.payload #= BigInt(line.trim, 16)
         io.sData.valid #= true
         clockDomain.waitSamplingWhere(io.sData.ready.toBoolean)
       }
@@ -53,15 +52,15 @@ class TbWindows extends Windows (WindowsConfig()) {
     var i = 0
     while (i < dstFile.length) {
       clockDomain.waitSampling()
-      //io.mData.ready #= true //不使用反压功能
-      io.mData.ready.randomize() //使用反压功能
+      io.mData.ready #= true //不使用反压功能
+      //io.mData.ready.randomize() //使用反压功能
       if (io.mData.valid.toBoolean && io.mData.ready.toBoolean) {
-        i = i + size * size
+        i = i + config.WINDOWS_SIZE_H * config.WINDOWS_SIZE_W
         io.start #= false
-        for(h <- 0 until size){
-          for (w <- 0 until size) {
+        for(h <- 0 until config.WINDOWS_SIZE_H){
+          for (w <- 0 until config.WINDOWS_SIZE_W) {
             val temp = dstFile(iter)
-            val o = toHexString(2, io.mData.payload(h)(w).toInt)
+            val o = toHexString(20, io.mData.payload(h)(w).toBigInt)
 
             if (!temp.equals(o)) {
               error = error + 1
