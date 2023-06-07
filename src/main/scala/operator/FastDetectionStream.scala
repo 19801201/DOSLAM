@@ -90,6 +90,6 @@ class FastDetectionStream(fastConfig : FastDetectionStreamConfig) extends Compon
     io.mData.payload.setAsReg()
 }
 
-object Fast extends App {
+object FastDetectionStream extends App {
     SpinalVerilog(new FastDetectionStream(FastDetectionStreamConfig()))
 }

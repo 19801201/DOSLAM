@@ -1,7 +1,5 @@
-package operator
+package data
 
-import spinal.core.Component.push
-import wa.ip._
 import spinal.core._
 import spinal.lib._
 import spinal.lib.fsm._
@@ -10,8 +8,10 @@ import wa.WaCounter
 
 case class BitwidthConversionConfig() {
     val DATA_WIDTH = 8
-    val DATA_STREAM_WIDTH_IN = DATA_WIDTH * 8
-    val DATA_STREAM_WIDTH_OUT = DATA_WIDTH * 10
+    val DATA_NUM_IN = 8
+    val DATA_NUM_OUT = 10
+    val DATA_STREAM_WIDTH_IN = DATA_WIDTH * DATA_NUM_IN
+    val DATA_STREAM_WIDTH_OUT = DATA_WIDTH * DATA_NUM_OUT
     //输入像素的位宽
     val SIZE_WIDTH = 11
     //输入大小的位宽
@@ -27,16 +27,19 @@ case class BitwidthConversionConfig() {
 /*
     第一个数据储存，第2，3，4，5个数据传输80bit，需要特判末尾数据是否有效
  */
+/*
+    本模块将8个8位数据，拼接位10个8位数据，一个周期出结果
+ */
 
 
-
-class BitwidthConversion(config: BitwidthConversionConfig) extends Component {
+class BitwidthConversion(config: BitwidthConversionConfig) extends Component {//现在不支持 无效数据
     val io = new Bundle {
-        val sData = slave Stream (Bits(config.DATA_STREAM_WIDTH_IN bits))
-        val mData = master Stream (Bits(config.DATA_STREAM_WIDTH_OUT bits))
+        val sData = slave Stream Bits(config.DATA_STREAM_WIDTH_IN bits)
+        val mData = master Stream Bits(config.DATA_STREAM_WIDTH_OUT bits)
         val start = in Bool()
-        val rowNumIn = in UInt (config.SIZE_WIDTH bits)
-        val colNumIn = in UInt (config.SIZE_WIDTH bits)//输入大小应该包含两部分，第一部分是输入的次数，第二部分是后八位代表列数，n代表有n个有效数
+        val rowNumIn = in UInt (config.SIZE_WIDTH bits)//输入行数为rowNumIn+1
+        val colNumIn = in UInt (config.SIZE_WIDTH - 3 bits)//输入列数为colNumIn + 1,每次包含八列数字，最后一列可能包含无效数据
+        val colValidNumIn = in UInt (3 bits)//最后一列的有效数据个数为i+1
     }
     //状态机 状态机的跳转
     val fsm = new StateMachine {
@@ -45,14 +48,13 @@ class BitwidthConversion(config: BitwidthConversionConfig) extends Component {
         val VALID = new State
         val ENDLINE = new State
         val END = new State
-
         //一共有四个状态IDLE准备状态，接受到start信号上升沿开始工作 进入valid状态
         //VALID 工作状态，只有valid状态才正常工作 当接受完所有数据，并且所有数据都已经输出那么进入END状态
         //END状态，
         //在这里进行输入控制。a::一定是每来一个数据才曾加1
         //一次输入八个数据这样可以更快的计算，
-        val colCnt = WaCounter(io.sData.fire, config.SIZE_WIDTH - 3, io.colNumIn(config.SIZE_WIDTH - 1 downto 3) - 1) //从最大值开始
-        val rowCnt = WaCounter(io.sData.fire && colCnt.valid, config.SIZE_WIDTH, io.rowNumIn - 1)
+        val colCnt = WaCounter(io.sData.fire, config.SIZE_WIDTH - 3, io.colNumIn) //从最大值开始
+        val rowCnt = WaCounter(io.sData.fire && colCnt.valid, config.SIZE_WIDTH, io.rowNumIn)
         //流水线最后一个数据接收到的位置，根据这个位置判断当前计算结果是否满足需求
         val dataInvalid = Bool()
         val EndOfLine = io.mData.fire || dataInvalid
@@ -90,7 +92,7 @@ class BitwidthConversion(config: BitwidthConversionConfig) extends Component {
     val BWCcount = WaCounter(io.sData.fire, 3, 4) //0 1 2 3 4，每次加1，其代表存下来的有效数据量是多少，0-》1的时候存8bit，4-》0的时候将8bit和暂存的数据全部传出
     // sDataPayTemp = Bits(config.DATA_STREAM_WIDTH_IN bits)
     //判断末尾有效数据位数
-    fsm.dataInvalid := (BWCcount.count > io.rowNumIn(2 downto 1)) || !BWCcount.count.orR
+    fsm.dataInvalid := (BWCcount.count > io.colValidNumIn(2 downto 1)) || !BWCcount.count.orR
     /*
     0 : 0
     1 : 8  0到7位还没有被接收
@@ -111,23 +113,23 @@ class BitwidthConversion(config: BitwidthConversionConfig) extends Component {
     switch(BWCcount.count) { //fire的时候，sdata,边界条件如何处理？？？，
         is(0) { //BWCcount.count代表接收了BWCcount.count个数据，这里还没有接收数据    64
             io.mData.valid := False
-            io.mData.payload := B"80'b0"
+            io.mData.payload.asBits := B"80'b0"
         }
         is(1) { //已经接收了一个数据，加上sData给的可以拼成一个数据，8
-            io.mData.payload :=  sDataPayTemp ## io.sData.payload(63 downto 48)
+            io.mData.payload := io.sData.payload(15 downto 0) ## sDataPayTemp
             io.mData.valid := mValid
             //1、上层valid拉高 2、这里存在最后的有效数据没有传递->有效数据中的无效数据->有效数据中的有数据
         }
         is(2) { //已经接收了两个数据，加上sData给的可以拼成一个数据，
-            io.mData.payload := sDataPayTemp.asBits(47 downto 0) ## io.sData.payload(63 downto 32)
+            io.mData.payload :=  io.sData.payload(31 downto 0) ## sDataPayTemp.asBits(63 downto 16)
               io.mData.valid := mValid
         }
         is(3) {
-            io.mData.payload := sDataPayTemp.asBits(31 downto 0) ## io.sData.payload(63 downto 16)
+            io.mData.payload := io.sData.payload(47 downto 0) ## sDataPayTemp.asBits(63 downto 32)
               io.mData.valid := mValid
         }
         is(4) { //已经接收了四个数据，加上sData给的可以拼成一个数据，sData的数据变为废数，不在需要，2
-            io.mData.payload := sDataPayTemp.asBits(15 downto 0) ## io.sData.payload(63 downto 0)
+            io.mData.payload := io.sData.payload(63 downto 0) ## sDataPayTemp.asBits(63 downto 48)
               io.mData.valid := mValid
         }
         default {

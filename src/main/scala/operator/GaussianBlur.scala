@@ -13,7 +13,6 @@ case class GaussianBlurConfig(DATA_NUM : Int = 8,
     val WINDOWS_SIZE_H = 7
     val DATA_WIDTH = 8
     val DATA_STREAM_WIDTH = DATA_WIDTH * DATA_NUM
-    val MEM_NUM = WINDOWS_SIZE_H - 1
     //创建的MEM个数
 }
 
@@ -161,6 +160,6 @@ class GaussianBlur(config:GaussianBlurConfig) extends Module{
 }
 
 
-object GaussianBlurI extends App {
+object GaussianBlur extends App {
     SpinalVerilog(new GaussianBlur(GaussianBlurConfig()))
 }
