@@ -11,7 +11,7 @@ import wa.xip.xpm._
 //实现流水线模块的NMS，进行8次大小判断，得到非极大值抑制之后的结果
 /*
     给出一个输入经过rowMem模块得到3行输出，经过windowsReg得到8 * 9个点的数据 经过Comparison得到是否是特征点的结果。最后结果保存在fifo中。
-    然后控制反压。
+    然后控制反压。这个模块存在一个问题就是在计算边界的时候，边界条件需要给0。
  */
 case class NMSConfig(DATA_WIDTH : Int = 8,
                      DATA_NUM : Int = 8
@@ -24,6 +24,7 @@ case class NMSConfig(DATA_WIDTH : Int = 8,
     val WINDOWS_H = 3
     val x = Array(0, 1 , 2, 2, 2, 1, 0, 0)
     val y = Array(2, 2 , 2, 1, 0, 0, 0, 1)
+    val boundaryDetection = 16
 }
 
 class NMS(config:NMSConfig) extends Module{
@@ -48,14 +49,19 @@ class NMS(config:NMSConfig) extends Module{
 
                 mem.write(wrAddr, rdData(i + 1), RegNext(wen)) //同步写,使能延迟
                 //存入
-                rdData(i) := mem.readSync(rdAddr) //同步读
+                when(wen){
+                    rdData(i) := mem.readAsync(rdAddr) //同步读
+                }
                 //从0到n-2的范围的MEM读出
                 mem
             }
 
             gen()
         })
-        rdData(config.MEM_NUM) := RegNext(inputData)
+        when(wen){
+            rdData(config.MEM_NUM) := inputData
+        }
+
     }
 
     def windowsReg(rdData:Vec[Bits], wen:Bool): Vec[Vec[Bits]] = {
@@ -82,7 +88,7 @@ class NMS(config:NMSConfig) extends Module{
         for(i <- 0 until  config.DATA_NUM){
             for (j <- 0 until  config.WINDOWS_H) {
                 for (k <- 0 until  config.WINDOWS_W) {
-                    temp(i)(j)(k) := windows(j).asBits.subdivideIn(config.WINDOWS_W * config.DATA_NUM slices)(6 + i + k)
+                    temp(i)(j)(k) := windows(j).asBits.subdivideIn(config.WINDOWS_W * config.DATA_NUM slices)(7 + i + k)
                 }
             }
         }
@@ -93,7 +99,7 @@ class NMS(config:NMSConfig) extends Module{
     def Comparison(compareData:Vec[Vec[Bits]]):Bool = {//中间的数大于所有的数，那么这个点可以被保留
         val isGreater = Vec(Bool(), 8)
         for(i <- 0 to 7){
-            isGreater(i) := compareData(config.x(i))(config.y(i)).asUInt > compareData(1)(1).asUInt
+            isGreater(i) := compareData(config.y(i))(config.x(i)).asUInt < compareData(1)(1).asUInt
         }
         isGreater.andR
     }
@@ -137,8 +143,8 @@ class NMS(config:NMSConfig) extends Module{
         //数据流向FIFO
         fire(5) := valid(4) && ready(5)
     }
-    def flowStore[T <: Data](dataType: T, start : Int, end : Int): T = {//传输一个任意类型的数据，
-        val data = Vec(dataType, end - start).setAsReg()
+    def flowStore(dataType: UInt, start : Int, end : Int): UInt = {//传输一个任意类型的数据，
+        val data = Vec(UInt(dataType.getWidth bits), end - start).setAsReg()
         for(i <- start until end){
             if(i == start){
                 when(flow.fire(i)) {
@@ -160,8 +166,8 @@ class NMS(config:NMSConfig) extends Module{
         val END = new State
         //两种情况下会输出有效数据，第一种接收到有效数据，第二种mready为真，输出有效数据
 
-        val colCnt = WaCounter(io.sData.valid, io.colNumIn.getWidth, io.colNumIn - 1)
-        val rowCnt = WaCounter(io.sData.valid && colCnt.valid, io.rowNumIn.getWidth, io.rowNumIn - 1)
+        val colCnt = WaCounter(io.sData.fire, io.colNumIn.getWidth, io.colNumIn - 1)
+        val rowCnt = WaCounter(io.sData.fire && colCnt.valid, io.rowNumIn.getWidth, io.rowNumIn - 1)
         MemDataValid := rowCnt.count > 1 //第二行之后的数据有效
         val firstCol, endCol = Reg(Bool()) init False
 
@@ -186,16 +192,15 @@ class NMS(config:NMSConfig) extends Module{
     val determineMaximumValuePoint = new Area {
         val maximumPoint = Vec(Bool().setAsReg(), config.DATA_NUM)//判断是否是极大值的结果
         val sornerScore = Vec(Bits(config.DATA_WIDTH bits).setAsReg(), config.DATA_NUM)
-        val rdData = Vec(Bits(config.DATA_STREAM_WIDTH bits), config.WINDOWS_H)
+        val rdData = Vec(Bits(config.DATA_STREAM_WIDTH bits), config.WINDOWS_H).setAsReg()
         rowMem(rdData, io.sData.payload, flow.fire(0), io.colNumIn - 1)//这里是一个FIFO
         val windows = windowsReg(rdData, flow.fire(1)): Vec[Vec[Bits]]//这里是下一个FIFO，不仅是FIFO而且是第二次输入得到的结果才是有效的
         val compareData = formatConversion(windows)//
-        for(i <- 0 until config.DATA_NUM){
+        for(i <- 0 until config.DATA_NUM){//有些点被NMS清除
             when(flow.fire(3)){
                 maximumPoint(i) := Comparison(compareData(i))
                 sornerScore(i) := windows(1)(1).subdivideIn(8 slices)(i)
             }
-
         }
     }
     //将结果储存，交给下一层进行分发,上一层的结果暂存交给这一层进行处理
@@ -206,9 +211,12 @@ class NMS(config:NMSConfig) extends Module{
         val storeSel = Vec(Bits(2 bits), config.DATA_NUM/2)//特征点的选择，是否有特征点
         val colCnt = flowStore(fsm.colCnt.count, 0, 4)//特征点所在的位置，延迟4个周期（MEM,WINDOWS1,DINDOWS2,COMPUTE）
         val rowCnt = flowStore(fsm.rowCnt.count, 0, 4)//特征点所在的位置，延迟4个周期（MEM,WINDOWS1,DINDOWS2,COMPUTE）
-        val colCntValid = flowStore(fsm.colCnt.valid, 0, 4)
+        val colCntValid = flowStore(fsm.colCnt.valid.asUInt, 0, 4).asBool
+        //val colCnt = fsm.colCnt.count
+        //val rowCnt = fsm.rowCnt.count
+        //val colCntValid = fsm.colCnt.valid
         val tempMaximumPoint = Vec(Bool(), config.DATA_NUM)
-        storeSel := tempMaximumPoint.asBits.subdivideIn(config.DATA_NUM/2 slices)
+        storeSel := determineMaximumValuePoint.maximumPoint.asBits.subdivideIn(config.DATA_NUM/2 slices)
 
         tempMaximumPoint(0) := !colCnt.orR && determineMaximumValuePoint.maximumPoint(0)//如果是第0个，那么这个数据一定无效
         tempMaximumPoint(7) := !colCntValid && determineMaximumValuePoint.maximumPoint(0)
@@ -229,17 +237,17 @@ class NMS(config:NMSConfig) extends Module{
             surplusValidsum := surplusValidsum - 1
             storeValidReg := storeValidReg //默认结果
             switch(storeValidReg.asBits){
-                is(M"1---"){
-                    storeValidReg(0) := False
+                is(M"1000"){
+                    storeValidReg(3) := False
                 }
-                is(M"01--"){
-                    storeValidReg(1) := False
-                }
-                is(M"001-"){
+                is(M"-100"){
                     storeValidReg(2) := False
                 }
-                is(M"0001"){
-                    storeValidReg(3) := False
+                is(M"--10"){
+                    storeValidReg(1) := False
+                }
+                is(M"---1"){
+                    storeValidReg(0) := False
                 }
                 default{
                     storeValidReg.foreach(_ := False)
@@ -251,7 +259,7 @@ class NMS(config:NMSConfig) extends Module{
         for(i <- 0 until 4){
             when(flow.fire(4)){
                 featurePointValue(i).colNum := colCnt.resized
-                featurePointValue(i).rowNum := rowCnt.resized
+                featurePointValue(i).rowNum := (rowCnt - 1).resized
             }
             storeValid(i) := storeSel(i).orR//其中一个为真即可
             when(flow.fire(4)) {
@@ -289,25 +297,24 @@ class NMS(config:NMSConfig) extends Module{
         //val fifo = FifoSync(XPM_FIFO_SYNC_CONFIG(MEM_TYPE.block, 1, FIFO_READ_MODE.std, 2048, 32, 32))//本身是流水线5
         val fifo = StreamFifo(store.featurePointValue(0), 2048)
         fifo.io.pop <> io.mData
-        fifo.io.push
         fifo.io.push.valid := flow.valid(4)//这个数据有效代表可以传递有效数据
         flow.ready(5) := fifo.io.push.ready
         //val a = B"32'1"
         switch(store.storeValidReg.asBits) {
-            is(M"1---") {
-                fifo.io.push.payload := store.featurePointValue(0)
+            is(M"1000") {
+                fifo.io.push.payload := store.featurePointValue(3)
             }
-            is(M"01--") {
-                fifo.io.push.payload := store.featurePointValue(1)
-            }
-            is(M"001-") {
+            is(M"-100") {
                 fifo.io.push.payload := store.featurePointValue(2)
             }
-            is(M"0001") {
-                fifo.io.push.payload := store.featurePointValue(3)
+            is(M"--10") {
+                fifo.io.push.payload := store.featurePointValue(1)
+            }
+            is(M"---1") {
+                fifo.io.push.payload := store.featurePointValue(0)
             }
             default {
-                fifo.io.push.payload := store.featurePointValue(3)
+                fifo.io.push.payload := store.featurePointValue(0)
             }
         }
     }
