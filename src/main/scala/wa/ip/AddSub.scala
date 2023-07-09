@@ -32,7 +32,7 @@ class AddSub(A_WIDTH: Int, B_WIDTH: Int, S_WIDTH: Int, A_TYPE: String, B_TYPE: S
         } else {
             out UInt (S_WIDTH bits)
         }
-        val add = if(ADD_MODE == "Add_Subtract"){
+        val ADD = if(ADD_MODE == "Add_Subtract"){
             in Bool()
         } else {
             null

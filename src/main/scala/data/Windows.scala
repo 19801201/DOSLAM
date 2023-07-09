@@ -1,15 +1,23 @@
-package operator
+package data
 
 import spinal.core._
 import spinal.lib._
 import spinal.lib.fsm._
 import wa.WaCounter
-
-case class WindowsConfig(DATA_NUM : Int = 10, WINDOWS_SIZE_H : Int = 2, WINDOWS_SIZE_W : Int = 1, MEM_DEPTH : Int = 1024) {
+//假设他能产生H*W的一个窗口 1、产生7行1列的数据那么给7 1即可
+//假设第二个是产生31*(31 + 8) 一个数据有8个数据，所以一共需要31*5
+case class WindowsConfig(DATA_NUM : Int = 10,
+                         WINDOWS_SIZE_H : Int = 2,
+                         WINDOWS_SIZE_W : Int = 1,
+                         MEM_DEPTH : Int = 1024,
+                         SIZE_WIDTH : Int = 11,
+                         isVS : Boolean = false,//是否支持数据步长
+                         VerticalStep : Int = 5,//垂直方向上的步长，通过垂直方向上的步长来舍弃数据，计数其值到4时，舍弃一行输出数据。
+                         VerticalStepData : Int = 4//垂直方向上取数据的数量
+                        ) {
   val DATA_WIDTH = 8
   val DATA_STREAM_WIDTH = DATA_WIDTH * DATA_NUM
   //输入像素的位宽
-  val SIZE_WIDTH = 11
   //输入大小的位宽
   //窗口的大小
   //一行图像的个数/8
@@ -20,7 +28,7 @@ case class WindowsConfig(DATA_NUM : Int = 10, WINDOWS_SIZE_H : Int = 2, WINDOWS_
 class Windows(windowsConfig : WindowsConfig) extends Component{
   val windowsConfig1 = windowsConfig
   val io = new Bundle {
-    //增加运行速度，一次传输8个数据
+    //增加运行速度，一次传输多个个数据
     val sData = slave Stream (Bits(windowsConfig.DATA_STREAM_WIDTH bits))
     val mData = master Stream (Vec(Vec(Bits(windowsConfig.DATA_STREAM_WIDTH bits),windowsConfig.WINDOWS_SIZE_W), windowsConfig.WINDOWS_SIZE_H))
     //输入信号和输出信号，确保size*size个数据同时输出
@@ -44,13 +52,17 @@ class Windows(windowsConfig : WindowsConfig) extends Component{
     //一共有三个状态IDLE准备状态，接受到start信号上升沿开始工作 进入valid状态
     //VALID 工作状态，只有valid状态才正常工作 当接受完所有数据，并且所有数据都已经输出那么进入END状态
     //END状态，
-
+    val rowDataValid = Bool()
     //在这里进行输入控制。a::一定是每来一个数据才曾加1
     //一次输入八个数据这样可以更快的计算，
-    val colCnt = WaCounter(io.sData.fire, windowsConfig.SIZE_WIDTH - 3, io.colNumIn(windowsConfig.SIZE_WIDTH - 1 downto 3) - 1)
+    val colCnt = WaCounter(io.sData.fire, windowsConfig.SIZE_WIDTH, io.colNumIn - 1)
     val rowCnt = WaCounter(io.sData.fire && colCnt.valid, windowsConfig.SIZE_WIDTH, io.rowNumIn - 1)
+    val VSCount = if(windowsConfig.isVS) {
+      WaCounter(io.sData.fire && colCnt.valid && rowDataValid, log2Up(windowsConfig.VerticalStep), U(windowsConfig.VerticalStep - 1, log2Up(windowsConfig.VerticalStep) bits))
+    } else {
+      null
+    }
     //流水线最后一个数据接收到的位置，根据这个位置判断当前计算结果是否满足需求
-    val dataOut = Bool()
     val ValidEndT = Reg(Bool()) init False
     val ValidEnd = Reg(Bool()) init False
     when(colCnt.valid && rowCnt.valid && io.sData.fire){
@@ -76,12 +88,21 @@ class Windows(windowsConfig : WindowsConfig) extends Component{
       .whenIsActive { //使用一个周期计数
         goto(IDLE)
         ValidEnd := False
+        if(windowsConfig.isVS){
+          VSCount.clear
+        }
       }
   }
   //流水控制模块，因为这一层级内只有两级流水所以很好弄，只使用两级级流水，valid代表寄存器组模块是否有效，ready代表寄存器组模块是否能够接受数据
   //fire代表寄存器组模块成功接受到数据。
   //a:接收到第n-1行，第n-1个数据开始有效，这个数据可以输出第一个窗口
-  val dataValidIn = fsm.colCnt.count >= (windowsConfig.WINDOWS_SIZE_W - 1) & fsm.rowCnt.count > (windowsConfig.WINDOWS_SIZE_H - 2)
+  fsm.rowDataValid := fsm.rowCnt.count > (windowsConfig.WINDOWS_SIZE_H - 2)
+  val dataValidIn = if(windowsConfig.isVS){
+    fsm.colCnt.count >= (windowsConfig.WINDOWS_SIZE_W - 1) & fsm.rowDataValid & !fsm.VSCount.valid
+  } else {
+    fsm.colCnt.count >= (windowsConfig.WINDOWS_SIZE_W - 1) & fsm.rowDataValid
+  }
+  //最后一行的时候数据会拉低。
   //输出第1个窗口时开始有效，需要等待数据一个周期
   val dataValidOut = RegNext(dataValidIn, io.sData.fire)
   //valid代表读数据模块是否有效，

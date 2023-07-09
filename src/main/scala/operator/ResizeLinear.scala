@@ -22,8 +22,8 @@ class ResizeLinear(resizeConfig : ResizeConfig) extends Component{
 
     val io = new Bundle {
         //增加运行速度，一次传输8个数据
-        val mData = master Stream Vec(Bits(resizeConfig.DATA_WIDTH bits), 8)
-        val sData = slave Stream Vec(Bits(resizeConfig.DATA_WIDTH * 10 bits), 2)
+        val mData = master Stream Bits(resizeConfig.DATA_STREAM_WIDTH bits)
+        val sData = slave Stream Vec(Vec(Bits(resizeConfig.DATA_WIDTH bits), 10), 2)
         //输入信号和输出信号，确保size*size个数据同时输出
         val start = in Bool()
         //开始信号
@@ -85,10 +85,10 @@ class ResizeLinear(resizeConfig : ResizeConfig) extends Component{
     //dataSel和selFx需要选择同一级流水。selFx拥有初始值，直接递增即可。权重处理也需要和这里选择同一级流水，这样可以同时得到两个所需参数
     val dataSel = Vec(Vec(UInt(resizeConfig.DATA_WIDTH bits),4), 8)//数据寄存一个周期，沉余一半的点，可以删除
     for(i <- 0 to 7) {//假设数据的加载方式是 按地址顺序来的
-        dataSel(i)(0) := io.sData.payload(0).subdivideIn(10 slices)(resizeConfig.initSelFx(i)).asUInt
-        dataSel(i)(1) := io.sData.payload(0).subdivideIn(10 slices)(resizeConfig.initSelFx(i) + 1).asUInt
-        dataSel(i)(2) := io.sData.payload(1).subdivideIn(10 slices)(resizeConfig.initSelFx(i)).asUInt
-        dataSel(i)(3) := io.sData.payload(1).subdivideIn(10 slices)(resizeConfig.initSelFx(i) + 1).asUInt
+        dataSel(i)(0) := io.sData.payload(0)(resizeConfig.initSelFx(i)).asUInt
+        dataSel(i)(1) := io.sData.payload(0)(resizeConfig.initSelFx(i) + 1).asUInt
+        dataSel(i)(2) := io.sData.payload(1)(resizeConfig.initSelFx(i)).asUInt
+        dataSel(i)(3) := io.sData.payload(1)(resizeConfig.initSelFx(i) + 1).asUInt
     }
     //4、计算的模块------------------5级流水，需要经过五个加法器
     //1.数据乘以x的相对距离,变为加法操作，一共有5种情况
@@ -183,7 +183,7 @@ class ResizeLinear(resizeConfig : ResizeConfig) extends Component{
 
     //5、流水线控制模块,
     //首先要防止数据丢失，使用FIFO和valid状态延迟，将输入有效信号延迟若干个周期
-    val fifo = StreamFifo(Vec(Bits(resizeConfig.DATA_SIZE bits), 8), 20)
+    val fifo = StreamFifo(Bits(resizeConfig.DATA_STREAM_WIDTH bits), 20)
     val sReady = Bool()
     when(fifo.io.availability < U"4'd8") { //当还可以储存的数据量较少时设置sReady为低，输入不在正常工作，valid值正常向后传输
         sReady := False
@@ -192,7 +192,7 @@ class ResizeLinear(resizeConfig : ResizeConfig) extends Component{
     }
     io.sData.ready := sReady && fsm.isActive(fsm.VALID)
     for(i <- 0 to 7){
-        fifo.io.push.payload(i) := dataFyMulSum(i).asBits(9 downto 2)
+        fifo.io.push.payload.subdivideIn(resizeConfig.DATA_SIZE slices)(i) := dataFyMulSum(i).asBits(9 downto 2)
     }
     fifo.io.push.valid <> Delay(io.sData.fire, 5)//给定的数据延迟若干个周期
     fifo.io.pop <> io.mData//得到的结果直接传递给外部

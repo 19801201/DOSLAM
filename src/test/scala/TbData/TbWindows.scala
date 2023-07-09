@@ -1,13 +1,13 @@
-package TbOperator
+package TbData
 
-import operator.{WindowsConfig,Windows}
-import spinal.core.sim._
+import data.{Windows, WindowsConfig}
 import spinal.core._
+import spinal.core.sim._
 
 import java.io.{File, PrintWriter}
 import scala.io.Source
 //测试通过 2 1 下一次测试，每五行删除一行数据
-class TbWindows(config : WindowsConfig = WindowsConfig()) extends Windows (config) {
+class TbWindows(config : WindowsConfig = WindowsConfig(isVS = true)) extends Windows (config) {
   def toHexString(width: Int, b: BigInt): String = {
     var s = b.toString(16)
     if (s.length < width) {
@@ -27,20 +27,20 @@ class TbWindows(config : WindowsConfig = WindowsConfig()) extends Windows (confi
     //        io.enPadding(1) #= true
     //        io.enPadding(2) #= false
     //        io.enPadding(3) #= true
-    io.rowNumIn #= 640
-    io.colNumIn #= 64 << 3
+    io.rowNumIn #= 200
+    io.colNumIn #= 20 << 3
     clockDomain.waitSampling(10)
   }
 
-  def in(src: String): Unit = {
-    fork {
-      for (line <- Source.fromFile(src).getLines) {
-        io.sData.payload #= BigInt(line.trim, 16)
-        io.sData.valid #= true
-        clockDomain.waitSamplingWhere(io.sData.ready.toBoolean)
-      }
+def in(src: String): Unit = {
+  fork {
+    for (line <- Source.fromFile(src).getLines) {
+      io.sData.payload #= BigInt(line.trim, 16)
+      io.sData.valid #= true
+      clockDomain.waitSamplingWhere(io.sData.ready.toBoolean)
     }
   }
+}
 
   def out(dst_scala: String, dst: String): Unit = {
     clockDomain.waitSampling()
