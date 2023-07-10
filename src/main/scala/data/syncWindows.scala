@@ -49,14 +49,13 @@ class syncWindows(config : WindowsConfig) extends Component{
         rdData来的是最新一行的数据，这个数据需要放到窗口的最右侧，然后整个窗口的数据向左移动，数据来临之后下个周期就开始有效
      */
     def windowsReg(rdData:Vec[Bits], wen:Bool): Vec[Vec[Bits]] = {
-        val windows = Vec(Vec(Reg(Bits(config.DATA_STREAM_WIDTH bits)) init 0, config.WINDOWS_SIZE_W ), config.WINDOWS_SIZE_H)
+        val windows = Vec(Vec(Bits(config.DATA_STREAM_WIDTH bits), config.WINDOWS_SIZE_W ), config.WINDOWS_SIZE_H)
         for (h <- 0 until config.WINDOWS_SIZE_H) {
             for (w <- 0 until config.WINDOWS_SIZE_W) {
                 if (w == config.WINDOWS_SIZE_W - 1) {
-                    when(wen){
-                        windows(h)(w) := rdData(h)
-                    }
+                    windows(h)(w) := rdData(h)
                 } else {
+                    windows(h)(w).setAsReg() init (0)
                     when(wen) {
                         windows(h)(w) := windows(h)(w + 1)
                     }
@@ -108,34 +107,46 @@ class syncWindows(config : WindowsConfig) extends Component{
     val rowDataValid0 = fsm.rowCnt.count >= (config.WINDOWS_SIZE_H - 1)
     val colDataValid0 = fsm.colCnt.count >= (config.WINDOWS_SIZE_W - 1)
     //修改为两级流水，一级控制row，一级控制windows，windows直接使用io.mdata
-    val rowValid,rowReady = Bool()
-    val windowsValid,windowsReady = Bool()
+//    val rowValid,rowReady = Bool()
+//    val windowsValid,windowsReady = Bool()
+//
+//    io.sData.ready := !rowValid || rowReady
+//
+//    rowValid.setAsReg() init False
+//    when(io.sData.fire){//上游传递数据，那么数据取决于上游数据是否有效，
+//        rowValid := rowDataValid0
+//    } elsewhen (rowValid && rowReady){//下游接收数据，那么数据变为无效
+//        rowValid := False
+//    }
+//    rowReady := !windowsValid || windowsReady
+//    val colDataValid1 = RegNextWhen(colDataValid0, io.sData.fire, False)
+//
+//    windowsValid.setAsReg() init False
+//    when(rowValid && rowReady) { //上游传递数据，那么数据取决于上游数据是否有效，
+//        windowsValid := colDataValid1
+//    } elsewhen (windowsValid && windowsReady) { //下游接收数据，那么数据变为无效
+//        windowsValid := False
+//    }
+//
+//    io.mData.valid := windowsValid
+//    windowsReady := io.mData.ready
 
-    io.sData.ready := !rowValid || rowReady
-
-    rowValid.setAsReg() init False
-    when(io.sData.fire){//上游传递数据，那么数据取决于上游数据是否有效，
-        rowValid := rowDataValid0
-    } elsewhen (rowValid && rowReady){//下游接收数据，那么数据变为无效
-        rowValid := False
+    io.sData.ready := !io.mData.valid || io.mData.ready
+    io.mData.valid.setAsReg() init False
+    when(io.sData.fire) { //上游传递数据，那么数据取决于上游数据是否有效，
+        io.mData.valid := io.sData.valid && rowDataValid0 && colDataValid0
+    } elsewhen (io.mData.fire) { //下游接收数据，那么数据变为无效
+        io.mData.valid := False
     }
-    rowReady := !windowsValid || windowsReady
-    val colDataValid1 = RegNextWhen(colDataValid0, io.sData.fire, False)
 
-    windowsValid.setAsReg() init False
-    when(rowValid && rowReady) { //上游传递数据，那么数据取决于上游数据是否有效，
-        windowsValid := colDataValid1
-    } elsewhen (windowsValid && windowsReady) { //下游接收数据，那么数据变为无效
-        windowsValid := False
-    }
-
-    io.mData.valid := windowsValid
-    windowsReady := io.mData.ready
+//    when(io.mData.ready){
+//        io.mData.valid := io.sData.valid && rowDataValid0 && colDataValid0
+//    }
 
     val rdData = Vec(Bits(config.DATA_STREAM_WIDTH bits), config.WINDOWS_SIZE_H)
     rowMem(rdData, io.sData.payload, io.sData.fire, io.colNumIn - 1)
-    io.mData.payload := windowsReg(rdData, rowValid && rowReady)
-
+    //io.mData.payload := windowsReg(rdData, rowValid && rowReady)
+    io.mData.payload := windowsReg(rdData, io.sData.fire)
 }
 
 object syncWindows extends App {
