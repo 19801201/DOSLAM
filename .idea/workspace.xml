@@ -1,0 +1,431 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="a8ad2523-d294-42b8-8533-c9ae01a0e45a" name="Changes" comment="对数据进行旋转操作(旋转变为位移)">
+      <change afterPath="$PROJECT_DIR$/.idea/codeStyles/Project.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/codeStyles/codeStyleConfig.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/libraries/scala_sdk_2_11_12.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/sbt.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/project/build.properties" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/scala/config/Config.scala" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/scala/top/FastPlus.scala" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/scala/top/RSBrief.scala" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/scala/top/compute.scala" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/scala/wa/WaFifo.scala" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/scala/wa/xip/xpm/MEM_PARAM.scala" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/scala/wa/xip/xpm/XPM_FIFO_SYNC.scala" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.sbt" beforeDir="false" afterPath="$PROJECT_DIR$/build.sbt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/scala/data/FastDataGenerater.scala" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="CodeStyleSettingsInfer">
+    <option name="done" value="true" />
+  </component>
+  <component name="ExternalProjectsData">
+    <projectState path="$PROJECT_DIR$">
+      <ProjectState />
+    </projectState>
+  </component>
+  <component name="ExternalProjectsManager">
+    <system id="SBT">
+      <state>
+        <projects_view>
+          <tree_state>
+            <expand>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="spinal_slam_dev" type="f1a62948:ProjectNode" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="spinal_slam_dev" type="f1a62948:ProjectNode" />
+                <item name="spinal_slam_dev" type="2d1252cf:ModuleNode" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="spinal_slam_dev" type="f1a62948:ProjectNode" />
+                <item name="spinal_slam_dev-build" type="2d1252cf:ModuleNode" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="spinal_slam_dev" type="f1a62948:ProjectNode" />
+                <item name="spinal_slam_dev-build" type="2d1252cf:ModuleNode" />
+                <item name="Dependencies" type="6de06a37:ExternalSystemViewDefaultContributor$MyDependenciesNode" />
+              </path>
+            </expand>
+            <select />
+          </tree_state>
+        </projects_view>
+      </state>
+    </system>
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Package Object" />
+        <option value="Class" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
+  </component>
+  <component name="ProjectCodeStyleSettingsMigration">
+    <option name="version" value="2" />
+  </component>
+  <component name="ProjectId" id="2Np8KfklLnKPP2AsYRP0AKyAWi2" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
+    &quot;last_opened_file_path&quot;: &quot;F:/Project/SpinalHDLProject/SpinalHDLOrbSlamAccelerator&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Libraries&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.37880275&quot;,
+    &quot;run.code.analysis.last.selected.profile&quot;: &quot;pProject Default&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;sbt.project.settings.configurable&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  }
+}</component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="F:\Project\SpinalHDLProject\SpinalHDLOrbSlamAccelerator\src\test\ip" />
+      <recent name="F:\Project\SpinalHDLProject\SpinalHDLOrbSlamAccelerator\src\main\data" />
+      <recent name="F:\Project\SpinalHDLProject\SpinalHDLOrbSlamAccelerator\src\test\data" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Application.RiscvCore">
+    <configuration name="RSBrief" type="Application" factoryName="Application" temporary="true">
+      <option name="MAIN_CLASS_NAME" value="top.RSBrief" />
+      <module name="spinal_slam_dev" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="top.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="RiscvCore" type="Application" factoryName="Application" temporary="true">
+      <option name="MAIN_CLASS_NAME" value="spinal.lib.cpu.riscv.impl.RiscvCore" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="spinal.lib.cpu.riscv.impl.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Rotate" type="Application" factoryName="Application" temporary="true">
+      <option name="MAIN_CLASS_NAME" value="operator.Rotate" />
+      <module name="spinal_slam_dev" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="operator.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="TbRotate" type="Application" factoryName="Application" temporary="true">
+      <option name="MAIN_CLASS_NAME" value="TbOperator.TbRotate" />
+      <module name="spinal_slam_dev" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="TbOperator.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mux" type="Application" factoryName="Application" temporary="true">
+      <option name="MAIN_CLASS_NAME" value="demo.mux" />
+      <module name="spinal_slam_dev" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="demo.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Application.RiscvCore" />
+        <item itemvalue="Application.mux" />
+        <item itemvalue="Application.RSBrief" />
+        <item itemvalue="Application.TbRotate" />
+        <item itemvalue="Application.Rotate" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="a8ad2523-d294-42b8-8533-c9ae01a0e45a" name="Changes" comment="" />
+      <created>1680349602741</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1680349602741</updated>
+      <workItem from="1680349604021" duration="7563000" />
+      <workItem from="1680391726594" duration="4281000" />
+      <workItem from="1680396074562" duration="18350000" />
+      <workItem from="1680782684979" duration="6550000" />
+      <workItem from="1680827908141" duration="23887000" />
+      <workItem from="1680864872385" duration="10302000" />
+      <workItem from="1680914248864" duration="6398000" />
+      <workItem from="1680936507802" duration="11439000" />
+      <workItem from="1680954381991" duration="8204000" />
+      <workItem from="1681000604305" duration="15529000" />
+      <workItem from="1681036322967" duration="4659000" />
+      <workItem from="1681093557146" duration="1190000" />
+      <workItem from="1681110455536" duration="8317000" />
+      <workItem from="1681195399778" duration="2948000" />
+      <workItem from="1681259175675" duration="2018000" />
+      <workItem from="1681455467265" duration="12206000" />
+      <workItem from="1681472584674" duration="5858000" />
+      <workItem from="1681561759317" duration="2002000" />
+      <workItem from="1683381236126" duration="1087000" />
+      <workItem from="1683466754898" duration="852000" />
+      <workItem from="1683547034644" duration="9000" />
+      <workItem from="1683634315080" duration="2405000" />
+      <workItem from="1683681825125" duration="2583000" />
+      <workItem from="1683855802241" duration="11000" />
+      <workItem from="1684224337988" duration="78000" />
+      <workItem from="1684229202723" duration="594000" />
+      <workItem from="1684246256676" duration="27000" />
+      <workItem from="1684585314340" duration="1354000" />
+      <workItem from="1684630648805" duration="19186000" />
+      <workItem from="1684824089157" duration="22309000" />
+      <workItem from="1684992906985" duration="556000" />
+      <workItem from="1685059752930" duration="2797000" />
+      <workItem from="1685171389685" duration="1339000" />
+      <workItem from="1685234773667" duration="58679000" />
+      <workItem from="1685492320403" duration="27659000" />
+      <workItem from="1685574337787" duration="40824000" />
+      <workItem from="1685752726570" duration="2963000" />
+      <workItem from="1685780000608" duration="43524000" />
+      <workItem from="1686059581926" duration="9270000" />
+      <workItem from="1686185115213" duration="32820000" />
+      <workItem from="1686382146264" duration="22250000" />
+      <workItem from="1686491171636" duration="1913000" />
+      <workItem from="1686537591676" duration="2529000" />
+      <workItem from="1686558631081" duration="17000" />
+      <workItem from="1686883749922" duration="191000" />
+      <workItem from="1686983026723" duration="615000" />
+      <workItem from="1687085445248" duration="13000" />
+      <workItem from="1687344491079" duration="14000" />
+      <workItem from="1687768585502" duration="88000" />
+      <workItem from="1688369392516" duration="5019000" />
+      <workItem from="1688449879796" duration="1191000" />
+      <workItem from="1688519401560" duration="24123000" />
+      <workItem from="1688559756413" duration="2788000" />
+      <workItem from="1688603829460" duration="16900000" />
+      <workItem from="1688692043204" duration="51718000" />
+      <workItem from="1688974152762" duration="44548000" />
+      <workItem from="1689424850333" duration="595000" />
+      <workItem from="1689472018046" duration="3595000" />
+      <workItem from="1689727634308" duration="62000" />
+      <workItem from="1690181326408" duration="5324000" />
+      <workItem from="1690198617943" duration="20028000" />
+      <workItem from="1691651912323" duration="12006000" />
+      <workItem from="1692102438829" duration="159000" />
+      <workItem from="1694401458600" duration="15440000" />
+      <workItem from="1694740900961" duration="539000" />
+      <workItem from="1695543603055" duration="2620000" />
+      <workItem from="1695561620212" duration="295000" />
+    </task>
+    <task id="LOCAL-00001" summary="&#10;创建新项目，实现单数据的Windows&#10;Create a new project to achieve single data Windows">
+      <created>1680782841193</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1680782841193</updated>
+    </task>
+    <task id="LOCAL-00002" summary="实现仿真通过8bit转10bit模块，实现双线性插值计算模块，仿真通过H:2 W:1的Windows模块。The simulation is realized through the 8bit to 10bit module, realizing the bilinear interpolation calculation module, and the simulation is realized through the H: 2W: 1 Windows module.">
+      <created>1681002193857</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1681002193857</updated>
+    </task>
+    <task id="LOCAL-00003" summary="实现上下两侧大小为3的反射填充，左右两侧的填充移动到计算模块实现。经过验证结果是正确的。">
+      <created>1685404419766</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1685404419766</updated>
+    </task>
+    <task id="LOCAL-00004" summary="高斯滤波ac，高斯滤波测试了输入没有测试valid中断的情况，没有测试invalid不为7的情况，计算过程正确。">
+      <created>1685410065829</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1685410065829</updated>
+    </task>
+    <task id="LOCAL-00005" summary="暂时完成fast内部各个算子的实现，未经过测试，接下来将各个模块集成到fast中，并测试fast模块能否正确计算。对一张图首先反射填充周围区域然后Fast得到结果">
+      <created>1685669144406</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1685669144406</updated>
+    </task>
+    <task id="LOCAL-00006" summary="测试通过fast算子计算过程正确，其中valid和ready信号还未验证">
+      <created>1686139867544</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1686139867544</updated>
+    </task>
+    <task id="LOCAL-00007" summary="补充提交">
+      <created>1686139930746</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1686139930746</updated>
+    </task>
+    <task id="LOCAL-00008" summary="完成m01和m10的计算，仿真通过">
+      <created>1686274371388</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1686274371388</updated>
+    </task>
+    <task id="LOCAL-00009" summary="仿真测试通过BRIEF">
+      <created>1686280254930</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1686280254930</updated>
+    </task>
+    <task id="LOCAL-00010" summary="仿真测试通过tan2,精度为11.25">
+      <created>1686487017916</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1686487017916</updated>
+    </task>
+    <task id="LOCAL-00011" summary="提交一些修改">
+      <created>1688861321509</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1688861321509</updated>
+    </task>
+    <task id="LOCAL-00012" summary="修改windows产生窗口数据">
+      <created>1688947394793</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1688947394793</updated>
+    </task>
+    <task id="LOCAL-00013" summary="对windows产生数据的代码进行资源缩减，减少一列的寄存器">
+      <created>1688948055280</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1688948055280</updated>
+    </task>
+    <task id="LOCAL-00014" summary="提交特征点保存的数据类型">
+      <created>1688949005728</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1688949005728</updated>
+    </task>
+    <task id="LOCAL-00015" summary="对数据进行旋转操作(旋转变为位移)">
+      <created>1689058466605</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1689058466605</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="&#10;创建新项目，实现单数据的Windows&#10;Create a new project to achieve single data Windows" />
+    <MESSAGE value="实现仿真通过8bit转10bit模块，实现双线性插值计算模块，仿真通过H:2 W:1的Windows模块。The simulation is realized through the 8bit to 10bit module, realizing the bilinear interpolation calculation module, and the simulation is realized through the H: 2W: 1 Windows module." />
+    <MESSAGE value="实现上下两侧大小为3的反射填充，左右两侧的填充移动到计算模块实现。经过验证结果是正确的。" />
+    <MESSAGE value="高斯滤波ac，高斯滤波测试了输入没有测试valid中断的情况，没有测试invalid不为7的情况，计算过程正确。" />
+    <MESSAGE value="暂时完成fast内部各个算子的实现，未经过测试，接下来将各个模块集成到fast中，并测试fast模块能否正确计算。对一张图首先反射填充周围区域然后Fast得到结果" />
+    <MESSAGE value="测试通过fast算子计算过程正确，其中valid和ready信号还未验证" />
+    <MESSAGE value="补充提交" />
+    <MESSAGE value="完成m01和m10的计算，仿真通过" />
+    <MESSAGE value="仿真测试通过BRIEF" />
+    <MESSAGE value="仿真测试通过tan2,精度为11.25" />
+    <MESSAGE value="提交一些修改" />
+    <MESSAGE value="修改windows产生窗口数据" />
+    <MESSAGE value="对windows产生数据的代码进行资源缩减，减少一列的寄存器" />
+    <MESSAGE value="提交特征点保存的数据类型" />
+    <MESSAGE value="对数据进行旋转操作(旋转变为位移)" />
+    <option name="LAST_COMMIT_MESSAGE" value="对数据进行旋转操作(旋转变为位移)" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <breakpoint enabled="true" type="java-exception">
+          <properties class="java.lang.AssertionError" package="java.lang" />
+          <option name="timeStamp" value="1" />
+        </breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
+  </component>
+</project>
