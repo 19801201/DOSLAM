@@ -1,12 +1,13 @@
 package operator
 
-import spinal.core
+import data._
 import spinal.core._
 import spinal.lib._
 import spinal.lib.fsm._
 import wa.WaCounter
 import spinal.lib.experimental.chisel.Module
 import dataStructure._
+import utils.{ImageCount, ImageSize}
 import wa.xip.xpm._
 //实现流水线模块的NMS，进行8次大小判断，得到非极大值抑制之后的结果
 /*
@@ -14,17 +15,19 @@ import wa.xip.xpm._
     然后控制反压。这个模块存在一个问题就是在计算边界的时候，边界条件需要给0。
  */
 case class NMSConfig(DATA_WIDTH : Int = 8,
-                     DATA_NUM : Int = 8
+                     DATA_NUM : Int = 8,
+                     MEM_DEPTH : Int = 128
                                     ){
     val DATA_STREAM_WIDTH = DATA_WIDTH * DATA_NUM
     val SIZE_WIDTH = 11
     val MEM_NUM = 2
-    val MEM_DEPTH = 128
     val WINDOWS_W = 3
     val WINDOWS_H = 3
-    val x = Array(0, 1 , 2, 2, 2, 1, 0, 0)
-    val y = Array(2, 2 , 2, 1, 0, 0, 0, 1)
+    val x = Array(0, 1, 2, 2, 2, 1, 0, 0)
+    val y = Array(2, 2, 2, 1, 0, 0, 0, 1)
     val boundaryDetection = 16
+
+    val windows33 = WindowsConfig(DATA_NUM, WINDOWS_H, WINDOWS_W, MEM_DEPTH)
 }
 
 class NMS(config:NMSConfig) extends Module{
@@ -61,7 +64,6 @@ class NMS(config:NMSConfig) extends Module{
         when(wen){
             rdData(config.MEM_NUM) := inputData
         }
-
     }
 
     def windowsReg(rdData:Vec[Bits], wen:Bool): Vec[Vec[Bits]] = {
@@ -320,6 +322,85 @@ class NMS(config:NMSConfig) extends Module{
     }
 }
 
+class NMS1(config:NMSConfig) extends Module {
+    val io = new Bundle {
+        //增加运行速度，一次传输多个个数据
+        val sData = slave Stream Bits(config.DATA_STREAM_WIDTH bits)
+        val mData = master Stream new FeaturePointOrb(config.SIZE_WIDTH, config.DATA_WIDTH)
+        //输入信号和输出信号，确保size*size个数据同时输出
+        val start = in Bool()
+        //开始信号
+        val sizeIn = slave(new ImageSize(config.SIZE_WIDTH))
+    }
+    //1、首先生成3行3列的数据。然后比较结果是否满足
+    //得到根据生成的满足结果，产生mask码，选择这一位结果
+    //不断产生数据
+    //1、产生3行数据
+    val windows = new syncWindowsPadding(config.windows33)
+    windows.io.start := io.start
+    windows.io.sizeIn := io.sizeIn
+    windows.io.sData <> io.sData
+
+    val MASK4 = Array(
+        M"-------1",
+        M"------10",
+        M"-----100",
+        M"----1000",
+        M"---10000",
+        M"--100000",
+        M"-1000000",
+        M"10000000")
+
+    val MASK = Array(
+        M"00000001",
+        M"0000001-",
+        M"000001--",
+        M"00001---",
+        M"0001----",
+        M"001-----",
+        M"01------",
+        M"1-------")
+
+    val MASK2 = Array(
+        M"1-------",
+        M"01------",
+        M"001-----",
+        M"0001----",
+        M"00001---",
+        M"000001--",
+        M"0000001-",
+        M"00000001")
+
+    //2、生成比较结果
+    val formatData = formatConversion(windows.io.mData.payload, config.DATA_NUM)
+    val maxPointValid = Vec(formatData.map(data => Comparison(data, config.y, config.x))).asBits
+    val maxPointValid_r = RegNextWhen(maxPointValid, windows.io.mData.fire, B(0, config.DATA_NUM bits))
+    val scorePoint = Vec(formatData.map(data => data(1)(1)))
+    val scorePoint_r = RegNextWhen(scorePoint, windows.io.mData.fire)
+    printf("scorePoint_r:%d scorePoint_r.head.getWidth%d\n",scorePoint_r.size, scorePoint_r.head.getWidth)
+    val cnt = ImageCount(windows.io.mData.fire, windows.io.sizeOut)
+    //3、产生，从maxPointValid中按顺序选择出有效数据
+    val mask = Reg(Bits(config.DATA_NUM bits)) init(0)
+    val curMaxPointValid = mask ^ maxPointValid_r
+    val key = OHToUInt(Vec(MASK4.map(mask => mask === curMaxPointValid)))//选择出有效数据 得到key
+    when(windows.io.mData.fire){
+        mask := B(0, config.DATA_NUM bits)
+    } elsewhen(curMaxPointValid.orR){
+        mask :=  mask | UIntToOh(key)
+    }
+    //4、保存新产生的数据
+    val fifo = StreamFifo(new FeaturePointOrb(config.SIZE_WIDTH, config.DATA_WIDTH), 1024)
+    fifo.io.push.payload := new FeaturePointOrb(config.SIZE_WIDTH, config.DATA_WIDTH, cnt.getSize().regNextWhen(windows.io.mData.fire).setSel(key), scorePoint_r.read(key).asUInt)
+    fifo.io.push.valid := curMaxPointValid.orR
+    fifo.io.pop <> io.mData
+    val fifoReady = RegNext(fifo.io.availability > 16)
+    windows.io.mData.ready := fifoReady && (curMaxPointValid.subdivideIn(config.DATA_NUM slices).map(p => p.asUInt).reduceBalancedTree(_ +^ _) <= U"3'b1")
+}
+
 object NMS extends App {
     SpinalVerilog(new NMS(NMSConfig()))
+}
+
+object NMS1 extends App {
+    SpinalVerilog(new NMS1(NMSConfig()))
 }

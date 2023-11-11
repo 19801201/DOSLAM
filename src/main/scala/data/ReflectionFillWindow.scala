@@ -19,8 +19,6 @@ case class ReflectionFillWindowConfig(DATA_NUM : Int = 8,
     本模块只负责输出7行数据，接受到fire之后，下个时刻即给出数据
  */
 class ReflectionFillWindow(config:ReflectionFillWindowConfig) extends Module{
-
-
     val io = new Bundle {
         //增加运行速度，一次传输多个个数据
         val sData = slave Stream Bits(config.DATA_STREAM_WIDTH bits)

@@ -7,7 +7,9 @@ import spinal.core.sim._
 import java.io.{File, PrintWriter}
 import scala.io.Source
 import top._
-case class TbFast(config : FastConfig) extends Fast(config){
+
+import scala.util.Random
+case class TbFast(config : FastConfig) extends myOrbFast(config){
     def toHexString(width: Int, b: BigInt): String = {
         var s = b.toString(16)
         if (s.length < width) {
@@ -20,30 +22,25 @@ case class TbFast(config : FastConfig) extends Fast(config){
         clockDomain.forkStimulus(5)
 
         io.sData.valid #= false
-        io.sData.payload.foreach((elem : Bits) => elem #= 0)
+        io.sData.payload #= 0
         io.start #= false
-        //        io.enPadding(0) #= true
-        //        io.enPadding(1) #= true
-        //        io.enPadding(2) #= false
-        //        io.enPadding(3) #= true
-        io.rowNumIn #= 640
+        io.rowNumIn #= 480
         io.colNumIn #= 640 >> 3
-        io.threshold #= 20
-        //io.inValid #= 7
+        io.threshold #= 40
+        io.mData.ready #= false
         clockDomain.waitSampling(10)
-
     }
 
     def in(src: String): Unit = {
+        val random = new Random()
         fork {
-            var count = 0;
             for (line <- Source.fromFile(src).getLines) {
-                io.sData.payload(count % 7) #= BigInt(line.trim, 16)
-                count = count + 1
-                if (count % 7 == 0) {
-                    io.sData.valid #= true
-                    clockDomain.waitSamplingWhere(io.sData.ready.toBoolean)
-                }
+                io.sData.payload #= BigInt(line.trim, 16)
+                io.sData.valid #= true
+                clockDomain.waitSamplingWhere(io.sData.ready.toBoolean)
+                io.sData.valid #= false
+                val randomInt = random.nextInt(25)
+                if (randomInt < 4) clockDomain.waitSampling(randomInt)
             }
         }
     }
@@ -60,21 +57,18 @@ case class TbFast(config : FastConfig) extends Fast(config){
             clockDomain.waitSampling()
             io.mData.ready #= true
             if (io.mData.valid.toBoolean && io.mData.ready.toBoolean) {
-                //io.start #= false
+                io.start #= false
                 val temp = dstFile(iter)
                 val colNum = io.mData.payload.colNum.toInt * 8 + io.mData.payload.selNum.toInt
                 val rowNum = io.mData.payload.rowNum.toInt
                 val data = io.mData.payload.dataPoint.toInt
-                val t1 = toHexString(2, colNum % 256)
-                val t2 = toHexString(2, colNum / 256)
-                val t3 = toHexString(2, rowNum % 256)
-                val t4 = toHexString(2, rowNum / 256)
-                val t5 = toHexString(2, data)
-                val o = t5 + t2 + t1 + t4 + t3
+                val o = toHexString(4, colNum) + toHexString(4, rowNum) + toHexString(2, data)
 
                 if (!temp.equals(o)) {
                     error = error + 1
-                    printf(i + "\n");
+                    if(error < 100){
+                        printf(i + "\n");
+                    }
                 }
                 i = i + 1
                 if (iter % 1000 == 0) {
@@ -104,13 +98,13 @@ object TbFast extends App {
         defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH, resetKind = SYNC)
     )
     //SimConfig.withXSim.withWave.withConfig(spinalConfig).compile(new TbMaxPooling()).doSimUntilVoid { dut =>
-    SimConfig.withWave.withConfig(spinalConfig).compile(new TbFast(FastConfig())).doSimUntilVoid { dut =>
+    SimConfig.withXSim.withWave.withConfig(spinalConfig).compile(new TbFast(FastConfig())).doSimUntilVoid { dut =>
         dut.init
         dut.io.start #= true
         dut.clockDomain.waitSampling(10)
-        val path = "F:\\TestData\\OpencvData\\Fast"
+        val path = "F:\\TestData\\slamData\\fast"
         //dut.in("G:\\SpinalHDL_CNN_Accelerator\\simData\\paddingSrc.txt")
-        dut.in(path + "\\ReferenceDataIn.txt")
-        dut.out(path + "\\dstDataOut.txt",path + "\\ReferenceDataOut.txt")
+        dut.in(path + "\\input.coe")
+        dut.out(path + "\\simDataout.coe",path + "\\opencvDataOutFp.coe")
     }
 }

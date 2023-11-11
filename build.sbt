@@ -9,7 +9,7 @@ fork := true
 retrieveManaged := true
 
 libraryDependencies ++= Seq(
-  "com.github.spinalhdl" % "spinalhdl-core_2.11" % "1.7.3",
-  "com.github.spinalhdl" % "spinalhdl-lib_2.11" % "1.7.3",
-  compilerPlugin("com.github.spinalhdl" % "spinalhdl-idsl-plugin_2.11" % "1.7.3"),
+  "com.github.spinalhdl" % "spinalhdl-core_2.11" % "1.9.3",
+  "com.github.spinalhdl" % "spinalhdl-lib_2.11" % "1.9.3",
+  compilerPlugin("com.github.spinalhdl" % "spinalhdl-idsl-plugin_2.11" % "1.9.3"),
 )
