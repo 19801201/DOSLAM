@@ -26,4 +26,12 @@ class ImageCount[T <: Data](wen:Bool, size : ImageSize) extends Area{
     def getSize(): ImageSize = {
         new ImageSize(size.colNum.getWidth, colCnt.count, rowCnt.count)
     }
+
+    def rowValid(left:UInt, right:UInt): Bool = {
+        rowCnt.count >= left && rowCnt.count <= right
+    }
+
+    def colValid(left: UInt, right: UInt): Bool = {
+        colCnt.count >= left && colCnt.count <= right
+    }
 }

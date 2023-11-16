@@ -29,8 +29,8 @@ class TbSyncWindows(config : WindowsConfig) extends syncWindowsPadding (config) 
         io.mData.ready #= false
         io.start #= false
 
-        io.sizeIn.rowNum #= 20 - 1
-        io.sizeIn.colNum #= 30 - 1
+        io.sizeIn.rowNum #= 480 - 1
+        io.sizeIn.colNum #= (640 / 8) - 1
         clockDomain.waitSampling(10)
     }
 
@@ -109,14 +109,14 @@ object TbSyncWindows extends App {
         defaultClockDomainFrequency = FixedFrequency(200 MHz),
         defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH, resetKind = SYNC)
     )
-    val dataGenerateRow31Config = WindowsConfig(DATA_NUM = 1, WINDOWS_SIZE_H = 7, WINDOWS_SIZE_W = 3,
-        MEM_DEPTH = 128, SIZE_WIDTH = 11)
+    val dataGenerateRow31Config = WindowsConfig(DATA_NUM = 8, WINDOWS_SIZE_H = 7, WINDOWS_SIZE_W = 3,
+        MEM_DEPTH = 128)
 
     //SimConfig.withXSim.withWave.withConfig(spinalConfig).compile(new TbMaxPooling()).doSimUntilVoid { dut =>
     SimConfig.withWave.withConfig(spinalConfig).compile(new TbSyncWindows(dataGenerateRow31Config)).doSimUntilVoid { dut =>
         dut.init
         dut.io.start #= true
-        val path = "F:\\TestData\\OpencvData\\syncWindows"
+        val path = "F:\\TestData\\slamData\\ReflectionFillWindow"
         dut.in(path + "\\ReferenceDataIn.txt")
         dut.out(path + "\\dstDataOut.txt",path + "\\ReferenceDataOut.txt")
     }

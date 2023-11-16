@@ -1,9 +1,9 @@
 package data
 import spinal.core._
 import spinal.lib._
-import spinal.lib.fsm._
-
+import top.FastConfig
 import wa.WaCounter
+import operator._
 /**
  * 生成一个缓存MEM_NUM行数据的buf，每输入一个数据，下个周期读出垂直的n行数据，
  * inputData
@@ -86,16 +86,16 @@ object dataFlip{
 
 @DontName
 object BORDER_REFLECT{
-    val FlipDefault = U"5'b11111"
+    def FlipDefault = U"5'b11111"
 
-    val Flip5 = Array(
+    def Flip5 = Array(
         U"5'b00000" -> Array(1, 1, 2, 3, 4),
         U"5'b00001" -> Array(3, 2, 2, 3, 4),
         U"5'b00010" -> Array(0, 1, 2, 2, 1),
         U"5'b00011" -> Array(0, 1, 2, 3, 3),
         FlipDefault -> Array(0, 1, 2, 3, 4))
 
-    val Flip11 = Array(
+    def Flip11 = Array(
         U"5'b00000" -> Array(1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
         U"5'b00001" -> Array(3, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10),
         U"5'b00010" -> Array(5, 4, 3, 3, 4, 5, 6, 7, 8, 9, 10),
@@ -108,7 +108,7 @@ object BORDER_REFLECT{
         U"5'b01001" -> Array(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 9),
         FlipDefault -> Array(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
 
-    val Flip17 = Array(
+    def Flip17 = Array(
         U"5'b00000" -> Array( 1,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16),
         U"5'b00001" -> Array( 3,  2,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16),
         U"5'b00010" -> Array( 5,  4,  3,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16),
@@ -130,21 +130,21 @@ object BORDER_REFLECT{
 
 @DontName
 object BORDER_REFLECT101{
-    val FlipDefault = U"5'b11111"
+    def FlipDefault = U"5'b11111"
 
-    val Flip3 = Array(
+    def Flip3 = Array(
         U"5'b00000" -> Array(0, 1, 0),
         U"5'b00001" -> Array(2, 1, 2),
         FlipDefault -> Array(0, 1, 2))
 
-    val Flip5 = Array(
+    def Flip5 = Array(
         U"5'b00000" -> Array(0, 1, 2, 3, 2),
         U"5'b00001" -> Array(0, 1, 2, 1, 0),
         U"5'b00010" -> Array(4, 3, 2, 3, 4),
         U"5'b00011" -> Array(2, 1, 2, 3, 4),
         FlipDefault -> Array(0, 1, 2, 3, 4))
 
-    val Flip7 = Array(
+    def Flip7 = Array(
         U"5'b00000" -> Array(0, 1, 2, 3, 4, 5, 4),
         U"5'b00001" -> Array(0, 1, 2, 3, 4, 3, 2),
         U"5'b00010" -> Array(0, 1, 2, 3, 2, 1, 0),
@@ -187,3 +187,17 @@ object formatConversion{
 //    //def apply() = MASK
 //
 //}
+
+object formatCornerScoreWindos{
+    def apply(windows: Vec[Vec[Bits]], config:FastConfig): Vec[Vec[Bits]] = {
+        val temp = Vec(Vec(Bits(config.DATA_WIDTH bits), cornerScoreConfig().DATA_NUM), config.DATA_NUM)
+        for (i <- 0 until config.DATA_NUM) {
+            temp(i)(0) := windows(3)(1).subdivideIn(config.DATA_NUM slices)(i)
+            for (j <- 1 until cornerScoreConfig().DATA_NUM) {
+                temp(i)(j) := windows(FastDetectionConfig().y(j - 1) + 3).asBits.subdivideIn(config.WINDOWS_W * config.DATA_NUM slices)(FastDetectionConfig().x(j - 1) + 8 + i)
+                //temp(i)(j) := (windows(FastDetectionConfig().y(j - 1) + 3)(0) ## windows(FastDetectionConfig().y(j - 1) + 3)(1) ## windows(FastDetectionConfig().y(j - 1) + 3)(2)).subdivideIn(config.WINDOWS_W * config.DATA_NUM slices)(FastDetectionConfig().x(j - 1) + 8 + i)
+            }
+        }
+        temp
+    }
+}

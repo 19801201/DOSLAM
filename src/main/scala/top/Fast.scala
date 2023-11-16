@@ -1,6 +1,6 @@
 package top
-import data.{ReflectionFillWindow, ReflectionFillWindowConfig, WindowsConfig, syncWindowsPadding}
-import dataStructure.FeaturePoint
+import data.{ReflectionFillWindow, ReflectionFillWindowConfig, WindowsConfig, formatCornerScoreWindos, syncWindowsPadding}
+import dataStructure.{FeaturePoint, FeaturePointOrb}
 import operator.NMSConfig
 import spinal.core._
 import spinal.lib._
@@ -9,7 +9,7 @@ import wa.WaCounter
 import operator._
 import spinal.core.Component.push
 import spinal.lib.experimental.chisel.Module
-import utils.ImageSize
+import utils.{ImageCount, ImageSize}
 
 case class FastConfig(DATA_NUM : Int = 8,
                               MEM_DEPTH : Int = 1024,
@@ -20,6 +20,15 @@ case class FastConfig(DATA_NUM : Int = 8,
     val DATA_WIDTH = 8
     val DATA_STREAM_WIDTH = DATA_WIDTH * DATA_NUM
     //创建的MEM个数
+    val MASK4 = Array(
+        M"-------1",
+        M"------10",
+        M"-----100",
+        M"----1000",
+        M"---10000",
+        M"--100000",
+        M"-1000000",
+        M"10000000")
 }
 
 //class myOrbFastSync(config:FastConfig) extends Module{
@@ -51,8 +60,172 @@ case class FastConfig(DATA_NUM : Int = 8,
 //    fast.io.rowNumIn := io.rowNumIn
 //    fast.io.start := io.start
 //}
+//这是每次处理8像素点每个像素都进行全并行计算，8个特征检测模块，8个得分点计算模块
+class FastOrbFull(config:FastConfig) extends Module{
+    val io = new Bundle { //给出输入得到输出结果
+        //增加运行速度，一次传输多个个数据
+        val sData = slave Stream Bits(config.DATA_STREAM_WIDTH bits)
+        val mData = master Stream new FeaturePointOrb(config.SIZE_WIDTH, config.DATA_WIDTH)
+//        val mData = master Stream Bits(config.DATA_STREAM_WIDTH bits)
+//        val temp = master Flow(Vec(Vec(Bits(config.DATA_WIDTH bits), cornerScoreConfig().DATA_NUM), config.DATA_NUM))
+        //输入信号和输出信号，确保size*size个数据同时输出
+        val start = in Bool()
+        //开始信号
+        val sizeIn = slave(new ImageSize(config.SIZE_WIDTH))
+        val threshold = in UInt (config.DATA_WIDTH bits)
+    }
 
-//class FastOrb(config:FastConfig) extends Module{
+    //1、生成窗口
+    val windows = new syncWindowsPadding(WindowsConfig(DATA_NUM = 8, WINDOWS_SIZE_H = 7, WINDOWS_SIZE_W = 3,
+        MEM_DEPTH = 128))
+    windows.io.start := io.start
+    windows.io.sData <> io.sData
+    windows.io.sizeIn := io.sizeIn
+    //2、做fast特征检测
+    val fastDetectionWindows = formatCornerScoreWindos(windows.io.mData.payload, config)
+//    io.temp.payload := fastDetectionWindows
+//    io.temp.valid := windows.io.mData.fire
+    val fastDetectionWindows_r = Delay(fastDetectionWindows, 1)
+    val isFastFeaturePoints, isFastFeatureLight = Bits(config.DATA_NUM bits)
+    val cornerValid = Bits(config.DATA_NUM bits)
+    val cornerData  = Vec(Bits(config.DATA_WIDTH bits), config.DATA_NUM)
+
+    val validCnt = ImageCount(windows.io.mData.fire, io.sizeIn)
+    val rowValid = RegNextWhen(validCnt.rowValid(U(3, 2 bits), io.sizeIn.rowNum - 3), windows.io.mData.fire, False)
+
+    val debugColValid = Bits(config.DATA_NUM bits)
+    fastDetectionWindows.zipWithIndex.foreach((d) => {
+        val (data, i) = d
+        val colValidSize = validCnt.getSize().setSel(U(i, 3 bits))
+        val colValid = RegNextWhen(colValidSize.colNum >= 3 && colValidSize.colNum <= ((io.sizeIn.colNum << 3) + 4), windows.io.mData.fire, False)
+        //做特征检测
+        debugColValid(i) := colValid
+        val fastDetection = new FastDetection(FastDetectionConfig())
+        fastDetection.io.sData.payload := data
+        fastDetection.io.sData.valid := windows.io.mData.fire
+        fastDetection.io.threshold := io.threshold
+        isFastFeaturePoints(i) := fastDetection.io.mData.fire && fastDetection.io.mData.payload.orR && colValid && rowValid
+        isFastFeatureLight(i) := fastDetection.io.mData.payload(0)
+        //3、计算分数
+        val corner = new CornerScore(cornerScoreConfig())
+        corner.io.sData.payload := fastDetectionWindows_r(i)
+        corner.io.sData.valid := isFastFeaturePoints(i)
+        corner.io.islight := fastDetection.io.mData.payload(0)
+        cornerData(i) := corner.io.mData.valid.mux(corner.io.mData.payload, B(0, config.DATA_WIDTH bits))
+    })
+    //得到的结果存入fifo
+    val fifo = new StreamFifo(Bits(config.DATA_STREAM_WIDTH bits), 128)
+    fifo.io.push.valid := Delay(windows.io.mData.fire, 5)
+    fifo.io.push.payload := cornerData.asBits
+
+    //io.sReady.setAsReg() init(False)
+    when(fifo.io.availability > 10) {
+        windows.io.mData.ready := True
+    } otherwise {
+        windows.io.mData.ready := False
+    }
+    //得到的结果传入NMS
+    val nms = new NMS1(NMSConfig())
+    nms.io.sData <> fifo.io.pop
+    nms.io.start <> io.start
+    nms.io.sizeIn := windows.io.sizeIn
+    nms.io.mData <> io.mData
+//
+//    io.mData <> fifo.io.pop
+}
+//这里非全并行模块，根据特征点生成的概率，8个特征检测模块，配备一个得分点比较模块
+class FastOrbSmall(config:FastConfig) extends Module{
+    val io = new Bundle { //给出输入得到输出结果
+        //增加运行速度，一次传输多个个数据
+        val sData = slave Stream Bits(config.DATA_STREAM_WIDTH bits)
+        val mData = master Stream new FeaturePointOrb(config.SIZE_WIDTH, config.DATA_WIDTH)
+//        val mData = master Stream Bits(config.DATA_STREAM_WIDTH bits)
+        //输入信号和输出信号，确保size*size个数据同时输出
+        val start = in Bool()
+        //开始信号
+        val sizeIn = slave(new ImageSize(config.SIZE_WIDTH))
+        val threshold = in UInt (config.DATA_WIDTH bits)
+    }
+    //1、生成窗口
+    val fifoReady = Bool()
+    val windows = new syncWindowsPadding(WindowsConfig(8, 7, 3, 128))
+    windows.io.start := io.start
+//    windows.io.sData.payload := io.sData.payload
+//    windows.io.sData.valid := io.sData.valid && fifoReady
+//    io.sData.ready := windows.io.sData.ready && fifoReady
+    windows.io.sData <> io.sData
+    windows.io.sizeIn := io.sizeIn
+    //2、做fast特征检测 得分点计算
+    val fastDetectionWindows = windows.io.mData.continueWhen(fifoReady).translateWith(formatCornerScoreWindos(windows.io.mData.payload, config))
+    val fastDetectionWindows_r = fastDetectionWindows.m2sPipe(holdPayload = true)
+    val isFastFeatureLight, isFastFeaturePoints = Bits(config.DATA_NUM bits)
+    val isNextFastFeaturePoints,isNextFastFeatureLight = Reg(Bits(config.DATA_NUM bits))
+    val curMaxPointValidLess1 = Bool()
+    //有效数据计算
+    val validCnt = ImageCount(windows.io.mData.fire, io.sizeIn)
+    val rowValid = RegNextWhen(validCnt.rowValid(U(3, 2 bits), io.sizeIn.rowNum - 3), windows.io.mData.fire, False)
+
+    fastDetectionWindows.payload.zipWithIndex.foreach((d) =>{
+        val (data, i) = d
+
+        val colValidSize = validCnt.getSize().setSel(U(i, 3 bits))
+        val colValid = RegNextWhen(colValidSize.colNum >= 3 && colValidSize.colNum <= ((io.sizeIn.colNum << 3) + 4), windows.io.mData.fire, False)
+
+        val fastDetection = new FastDetection(FastDetectionConfig())
+        fastDetection.io.sData.payload := data
+        fastDetection.io.sData.valid := fastDetectionWindows.fire
+        fastDetection.io.threshold := io.threshold
+        isFastFeaturePoints(i) := fastDetection.io.mData.fire && fastDetection.io.mData.payload.orR && colValid && rowValid
+        isFastFeatureLight(i) := fastDetection.io.mData.payload(0)
+        when(fastDetection.io.mData.fire){
+            isNextFastFeaturePoints(i) := isFastFeaturePoints(i)
+            isNextFastFeatureLight(i) := isFastFeatureLight(i)
+        }
+    })
+    //3、计算分数
+    //fastDetectionWindows_r是计算所需要的数据，
+    //CornerScore延迟4个周期
+
+    val mask = Reg(Bits(config.DATA_NUM bits)) init (0)
+    val FastFeaturePointsNeed = Delay(fastDetectionWindows.fire, 1).mux(isFastFeaturePoints, isNextFastFeaturePoints)
+    val FastFeatureLightNeed = Delay(fastDetectionWindows.fire, 1).mux(isFastFeatureLight, isNextFastFeatureLight)
+    val curMaxPointValid = mask ^ FastFeaturePointsNeed
+    val key = OHToUInt(Vec(config.MASK4.map(mask => mask === curMaxPointValid))) //选择出有效数据 得到key
+    when(windows.io.mData.fire) {
+        mask := B(0, config.DATA_NUM bits)
+    } elsewhen (curMaxPointValid.orR) {
+        mask := mask | UIntToOh(key)
+    }
+    val score = new CornerScore(cornerScoreConfig())
+    score.io.sData.payload := fastDetectionWindows_r.payload.read(key)
+    score.io.sData.valid := fastDetectionWindows_r.valid && curMaxPointValid.orR
+    score.io.islight := FastFeatureLightNeed(key)
+    fastDetectionWindows_r.ready := curMaxPointValidLess1
+    curMaxPointValidLess1 := (curMaxPointValid.subdivideIn(config.DATA_NUM slices).map(p => p.asUInt).reduceBalancedTree(_ +^ _) <= U"3'b1")
+    //4、结果保存
+    val saveKey = Delay(key, 4)
+    val saveCurMaxPointValid = Delay(curMaxPointValid, 4)
+    val fifo = StreamFifo(Bits(config.DATA_STREAM_WIDTH bits), 64)
+    fifoReady := RegNext(fifo.io.availability >= 8)
+    val saveData = Vec(Reg(Bits(config.DATA_WIDTH bits)) init 0, config.DATA_NUM)
+    when(Delay(fastDetectionWindows_r.fire, 5)) {
+        saveData.foreach(_ := B(0, config.DATA_WIDTH bits))
+    }
+    when(score.io.mData.fire){
+        saveData.write(saveKey, score.io.mData.payload)
+    }
+    fifo.io.push.payload := saveData.asBits
+    fifo.io.push.valid := Delay((saveCurMaxPointValid.subdivideIn(config.DATA_NUM slices).map(p => p.asUInt).reduceBalancedTree(_ +^ _) <= U"3'b1") && Delay(fastDetectionWindows_r.valid, 4), 1)
+    //将结果传给NMS
+    val nms = new NMS1(NMSConfig())
+    nms.io.sData <> fifo.io.pop
+    nms.io.start <> io.start
+    nms.io.sizeIn := windows.io.sizeOut
+    nms.io.mData <> io.mData
+//    io.mData <> fifo.io.pop
+}
+
+//class myOrbFast(config:FastConfig) extends Module{
 //    val io = new Bundle { //给出输入得到输出结果
 //        //增加运行速度，一次传输多个个数据
 //        val sData = slave Stream Bits(config.DATA_STREAM_WIDTH bits)
@@ -60,49 +233,28 @@ case class FastConfig(DATA_NUM : Int = 8,
 //        //输入信号和输出信号，确保size*size个数据同时输出
 //        val start = in Bool()
 //        //开始信号
-//        val sizeIn = slave(new ImageSize(config.SIZE_WIDTH))
+//        val rowNumIn = in UInt (config.SIZE_WIDTH bits)
+//        val colNumIn = in UInt (config.SIZE_WIDTH bits)
 //        val threshold = in UInt (config.DATA_WIDTH bits)
 //    }
-//    //1、生成窗口
-//    val windows = new syncWindowsPadding(WindowsConfig(8, 7, 3, 128))
+//
+//    val windows = new ReflectionFillWindow(ReflectionFillWindowConfig())
+//    val fast = new OrbFast(FastConfig())
+//
+//    windows.io.colNumIn := io.colNumIn
+//    windows.io.rowNumIn := io.rowNumIn
 //    windows.io.start := io.start
+//
 //    windows.io.sData << io.sData
-//    windows.io.sizeIn := io.sizeIn
-//    //2、做fast特征检测
+//    fast.io.sData << windows.io.mData
+//    io.mData << fast.io.mData
+//    windows.io.mReady := fast.io.sDataReady
 //
-//
+//    fast.io.threshold := io.threshold
+//    fast.io.colNumIn := io.colNumIn
+//    fast.io.rowNumIn := io.rowNumIn
+//    fast.io.start := io.start
 //}
-
-class myOrbFast(config:FastConfig) extends Module{
-    val io = new Bundle { //给出输入得到输出结果
-        //增加运行速度，一次传输多个个数据
-        val sData = slave Stream Bits(config.DATA_STREAM_WIDTH bits)
-        val mData = master Stream FeaturePoint(NMSConfig())
-        //输入信号和输出信号，确保size*size个数据同时输出
-        val start = in Bool()
-        //开始信号
-        val rowNumIn = in UInt (config.SIZE_WIDTH bits)
-        val colNumIn = in UInt (config.SIZE_WIDTH bits)
-        val threshold = in UInt (config.DATA_WIDTH bits)
-    }
-
-    val windows = new ReflectionFillWindow(ReflectionFillWindowConfig())
-    val fast = new OrbFast(FastConfig())
-
-    windows.io.colNumIn := io.colNumIn
-    windows.io.rowNumIn := io.rowNumIn
-    windows.io.start := io.start
-
-    windows.io.sData << io.sData
-    fast.io.sData << windows.io.mData
-    io.mData << fast.io.mData
-    windows.io.mReady := fast.io.sDataReady
-
-    fast.io.threshold := io.threshold
-    fast.io.colNumIn := io.colNumIn
-    fast.io.rowNumIn := io.rowNumIn
-    fast.io.start := io.start
-}
 
 class OrbFast(config:FastConfig) extends Module{
     val io = new Bundle {//给出输入得到输出结果
@@ -241,7 +393,7 @@ class OrbFast(config:FastConfig) extends Module{
         nms.io.mData <> io.mData
     }
 }
-
+//原始的fast特征检测，NMS反压应该存在错误，替换位NMS1应该可以正常使用，使用老版的特征检测
 class Fast(config:FastConfig) extends Module{
     val io = new Bundle {//给出输入得到输出结果
         //增加运行速度，一次传输多个个数据
@@ -381,4 +533,12 @@ class Fast(config:FastConfig) extends Module{
 
 object Fast extends App {
     SpinalVerilog(new Fast(FastConfig()))
+}
+
+object FastOrbFull extends App {
+    SpinalVerilog(new FastOrbFull(FastConfig()))
+}
+
+object FastOrb extends App {
+    SpinalVerilog(new FastOrbSmall(FastConfig()))
 }
