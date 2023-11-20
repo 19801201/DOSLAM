@@ -86,7 +86,7 @@ class syncWindowsPadding(config : WindowsConfig) extends Component{
     cnt.clear(fsm.isActive(fsm.FLUSH))
     val rowData = RowBuf(data.toFlowFire, io.sizeIn.colNum, config.MEM_DEPTH, config.WINDOWS_SIZE_H)
     val rowDataFlip = Vec(Bits(config.DATA_STREAM_WIDTH bits), rowData.size)
-    dataFlip(rowData, rowDataFlip, selKey(RegNextWhen(cnt.rowCnt.count, data.fire, 0)), BORDER_REFLECT101.getFlip(config.WINDOWS_SIZE_H))
+    dataFlip(rowData, rowDataFlip, selKey(RegNextWhen(cnt.rowCnt.count, data.fire, 0)), BORDER_REFLECT101.getFlip(if(config.useFlip) config.WINDOWS_SIZE_H else 3), config.useFlip)
     //数据输入，生成水平数据，数据翻转
     val rdData = Flow(Vec(Bits(config.DATA_STREAM_WIDTH bits), rowData.size))
     rdData.valid := data.fire
@@ -94,7 +94,7 @@ class syncWindowsPadding(config : WindowsConfig) extends Component{
     val windowsReg = WindowsBuf(rdData, config.WINDOWS_SIZE_W)
     val colKey = selKey(RegNextWhen(cnt.colCnt.count, data.fire, 0))
 
-    io.mData.payload.zipWithIndex.foreach((cur) => dataFlip(windowsReg(cur._2), cur._1, colKey, BORDER_REFLECT101.getFlip(config.WINDOWS_SIZE_W)))
+    io.mData.payload.zipWithIndex.foreach((cur) => dataFlip(windowsReg(cur._2), cur._1, colKey, BORDER_REFLECT101.getFlip(if(config.useFlip) config.WINDOWS_SIZE_W else 3),config.useFlip))
     //如何控制valid和ready？
     data.ready := !io.mData.valid || io.mData.ready
     when(data.fire){

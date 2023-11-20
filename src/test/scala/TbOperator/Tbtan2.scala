@@ -30,7 +30,7 @@ case class Tbtan2(config : tan2Config) extends tan2(config){
         //io.rowNumIn #= 640
         //io.colNumIn #= 640 >> 3
         //io.inValid #= 7
-        clockDomain.waitSampling(10)
+        clockDomain.waitSampling(8)
     }
 
     def in(src: String): Unit = {
@@ -43,9 +43,9 @@ case class Tbtan2(config : tan2Config) extends tan2(config){
                 clockDomain.waitSampling(1)//等待8个有效位置
                 io.sData.valid #= false
                 clockDomain.waitSampling(7) //等待8个周期
-                val random = new Random() //延迟若干个周期后给下一个数
-                val num = random.nextInt(11)
-                clockDomain.waitSampling(num)//随机延迟若干周期
+//                val random = new Random() //延迟若干个周期后给下一个数
+//                val num = random.nextInt(11)
+//                clockDomain.waitSampling(num)//随机延迟若干周期
             }
         }
     }
@@ -103,7 +103,7 @@ object Tbtan2 extends App {
         dut.init
         //dut.io.start #= true
         dut.clockDomain.waitSampling(10)
-        val path = "F:\\TestData\\OpencvData\\tan2"
+        val path = "F:\\TestData\\slamData\\tan2"
         //dut.in("G:\\SpinalHDL_CNN_Accelerator\\simData\\paddingSrc.txt")
         dut.in(path + "\\ReferenceDataIn.txt")
         dut.out(path + "\\dstDataOut.txt",path + "\\ReferenceDataOut.txt")

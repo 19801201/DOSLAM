@@ -7,6 +7,10 @@ import wa.WaCounter
 import wa.ip._
 import spinal.lib.experimental.chisel.Module
 import spinal.core.sim._
+
+import scala.collection.mutable.ListBuffer
+import scala.math.{abs, ceil, floor, sqrt}
+
 case class IC_AngleConfig(DATA_NUM : Int = 31,
                               MEM_DEPTH : Int = 1024,
                               SIZE_WIDTH : Int = 11
@@ -15,13 +19,31 @@ case class IC_AngleConfig(DATA_NUM : Int = 31,
     val DATA_WIDTH = 8
     val DATA_STREAM_WIDTH = DATA_WIDTH * DATA_NUM
     //创建的MEM个数
-}
+    val umax = Array(15, 15, 15, 15, 14, 14, 14, 13, 13, 12, 11, 10, 9, 8, 6, 3)
+    val HALF_PATCH_SIZE: Int = 15
 
+}
+//求得角度
 class IC_Angle(config:IC_AngleConfig) extends Module{
     val io = new Bundle {//要求valid有效之后数据需要保持8周期的有效值//
         val sData = slave Flow (Vec(Vec(UInt(config.DATA_WIDTH bits), config.DATA_NUM), config.DATA_NUM)) //第一个是得分点,其余的是周围的点
         val mData = master Flow Vec(SInt(20 bits), 2)//传出M01和M10两个数据
     }
+    val sData = Flow (Vec(Vec(UInt(config.DATA_WIDTH bits), config.DATA_NUM), config.DATA_NUM))
+    sData.valid := io.sData.valid
+    for(y <- -config.HALF_PATCH_SIZE to config.HALF_PATCH_SIZE){
+        for (x <- -config.HALF_PATCH_SIZE to config.HALF_PATCH_SIZE) {
+            val absy = abs(y);
+            val absx = abs(x);
+            if (config.umax(absy) < absx) {
+                sData.payload(y + config.HALF_PATCH_SIZE)(x + config.HALF_PATCH_SIZE) := U(0 ,config.DATA_WIDTH bits)
+            }
+            else {
+                sData.payload(y + config.HALF_PATCH_SIZE)(x + config.HALF_PATCH_SIZE) := io.sData.payload(y + config.HALF_PATCH_SIZE)(x + config.HALF_PATCH_SIZE)
+            }
+        }
+    }
+
     //求和后使用dsp实现（d-a）*b + p这个运算。d和a还有b的输入都是有符号数，因此给出这个数据的时候需要高位填0变为无符号数分别位8 + 6和4 + 1的一个位宽得到的结果经过累加计算出最大可能的位宽然后截断。
     def addTree(dataIn:Vec[UInt]) : UInt = {//综合三个数和两个数的加法，节约资源。
         //第一次求和将31个数变为16位
@@ -81,8 +103,8 @@ class IC_Angle(config:IC_AngleConfig) extends Module{
     //这里包含延迟时间
     def control(B1:UInt, B2:UInt, sel:UInt, first:Bool, end:Bool): Unit = {//整个模块的控制模块
         //现在的valid是不对的需要延迟若干个周期与 乘法器配合
-        val timeCount = WaCounter(io.sData.valid, 3, 7)//从0记录到7，必须保证valid信号有效的时间是8个周期，让timeCount能够恢复初始状态
-        val DelayValid3 = Delay(io.sData.valid, 3)
+        val timeCount = WaCounter(sData.valid, 3, 7)//从0记录到7，必须保证valid信号有效的时间是8个周期，让timeCount能够恢复初始状态
+        val DelayValid3 = Delay(sData.valid, 3)
         val DelayEnd3 = Delay(timeCount.valid, 3)
         B1 := bData(DelayValid3, 15, DelayEnd3)//记录到最后一个下周期恢复到初始状态
         B2 := bData(DelayValid3, 14, DelayEnd3)//14 12 10 8 6 4 2 0
@@ -97,22 +119,22 @@ class IC_Angle(config:IC_AngleConfig) extends Module{
                 is(i){
                     if(isRow){
                         if(isEdge){
-                            dataOut1 := io.sData.payload(2 * i)
-                            dataOut2 := io.sData.payload(30 - 2 * i)
+                            dataOut1 := sData.payload(2 * i)
+                            dataOut2 := sData.payload(30 - 2 * i)
                         } else {
-                            dataOut1 := io.sData.payload(2 * i + 1)
-                            dataOut2 := io.sData.payload(30 - 2 * i - 1)
+                            dataOut1 := sData.payload(2 * i + 1)
+                            dataOut2 := sData.payload(30 - 2 * i - 1)
                         }
                     } else {
                         if (isEdge) {
                             for(j <- 0 to 30){
-                                dataOut1(j) := io.sData.payload(j)(2 * i)
-                                dataOut2(j) := io.sData.payload(j)(30 - 2 * i)
+                                dataOut1(j) := sData.payload(j)(2 * i)
+                                dataOut2(j) := sData.payload(j)(30 - 2 * i)
                             }
                         } else {
                             for (j <- 0 to 30) {
-                                dataOut1(j) := io.sData.payload(j)(2 * i + 1)
-                                dataOut2(j) := io.sData.payload(j)(30 - 2 * i - 1)
+                                dataOut1(j) := sData.payload(j)(2 * i + 1)
+                                dataOut2(j) := sData.payload(j)(30 - 2 * i - 1)
                             }
                         }
                     }

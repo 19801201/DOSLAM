@@ -17,7 +17,7 @@ case class tan2Config(DATA_NUM : Int = 2,
     val TAN_VALUE_Q = Array(3259, 6786, 10947, 16384, 24520, 39554, 82368);//对7个tan值进行量化，得到结果
     //创建的MEM个数
 }
-
+//先给x后给y
 class tan2(config:tan2Config) extends Module{
     val io = new Bundle {//要求valid有效之后数据需要保持8周期的有效值//
         val sData = slave Flow Vec(SInt(config.DATA_WIDTH bits), config.DATA_NUM)//得到质心位置，求出角度 1 x 0 y

@@ -91,7 +91,7 @@ case class TbFast(config : FastConfig) extends Fast(config){
     }
 }
 
-case class TbFastOrb1(config : FastConfig) extends FastOrb(config){
+case class TbFastOrb1(config : FastConfig) extends FastOrbSmall(config){
     def toHexString(width: Int, b: BigInt): String = {
         var s = b.toString(16)
         if (s.length < width) {

@@ -1,5 +1,5 @@
 package top
-import dataStructure.FeaturePoint
+import dataStructure.{FeaturePoint, FeaturePointOrb}
 import operator.NMSConfig
 import spinal.core._
 import spinal.lib._
@@ -9,6 +9,7 @@ import operator._
 import spinal.core.Component.push
 import data._
 import spinal.lib.experimental.chisel.Module
+import utils.{ImageCount, ImageSize}
 case class RSBriefConfig(DATA_NUM : Int = 8,
                       MEM_DEPTH : Int = 128,
                       SIZE_WIDTH : Int = 11
@@ -18,7 +19,16 @@ case class RSBriefConfig(DATA_NUM : Int = 8,
     val DATA_WIDTH = 8
     val DATA_STREAM_WIDTH = DATA_WIDTH * DATA_NUM
     //创建的MEM个数
-    val dataGenerateRow31Config = WindowsConfig(DATA_NUM = 8, WINDOWS_SIZE_H = 31, WINDOWS_SIZE_W = 5, MEM_DEPTH = MEM_DEPTH, SIZE_WIDTH = SIZE_WIDTH)
+    val dataGenerateRow31Config = WindowsConfig(DATA_NUM = 8, WINDOWS_SIZE_H = 31, WINDOWS_SIZE_W = 5, MEM_DEPTH = MEM_DEPTH, SIZE_WIDTH = SIZE_WIDTH,useFlip = false)
+    val MASK4 = Array(
+        M"-------1",
+        M"------10",
+        M"-----100",
+        M"----1000",
+        M"---10000",
+        M"--100000",
+        M"-1000000",
+        M"10000000")
 }
 
 class RSBrief(config:RSBriefConfig) extends Module {
@@ -28,8 +38,6 @@ class RSBrief(config:RSBriefConfig) extends Module {
         val sDataFeaturePoint = slave Stream FeaturePoint(NMSConfig())
 
         val mDataRsBrief = master Stream Bits(64 bits)
-
-        //开始信号
         val start = in Bool()
 
         //图片尺寸大小
@@ -124,7 +132,7 @@ class RSBrief(config:RSBriefConfig) extends Module {
         icAngle.io.sData.payload <> input.payload
         icAngle.io.sData.valid <> input.valid
         tan.io.sData <> icAngle.io.mData
-        rotate.io.sDataTan.payload <> tan.io.mData.payload.asBits
+        rotate.io.sDataTan.payload <> tan.io.mData.payload
         rotate.io.sDataTan.valid <> tan.io.mData.valid //这个ready信号控制 忽略即可
         sReady := rotate.io.sReady
         rotate.io.sDataBrief.payload <> brief.io.mData.payload.asBits
@@ -211,6 +219,69 @@ class RSBrief(config:RSBriefConfig) extends Module {
     compute(selDataOutput, sReady)
 }
 
+class RSBriefOrb(config:RSBriefConfig) extends Module {
+    val io = new Bundle {
+        //输入信号和输出信号，确保size*size个数据同时输出
+        val sDataImage = slave Stream Bits(config.DATA_STREAM_WIDTH bits)
+        val sizeIn = slave(new ImageSize(config.SIZE_WIDTH))
+        val sDataFeaturePoint = slave Stream new FeaturePointOrb(config.SIZE_WIDTH, config.DATA_WIDTH)
+        val mDataRsBrief = master Stream Bits(64 bits)
+        val start = in Bool()
+    }
+
+    //1、产生一个窗口数据,不进行padding
+    val windows31 = new syncWindowsPadding(config.dataGenerateRow31Config)
+    windows31.io.start := io.start
+    windows31.io.sizeIn := io.sizeIn
+    //2、获得特征点数据，根据特征点数据的值,产生valid有效信号
+    val fp1 = io.sDataFeaturePoint.m2sPipe(holdPayload = true)
+    val fp2 = fp1.m2sPipe(holdPayload = true)
+    //3、窗口数据的选择，根据fp2的数据获取对应的窗口数据
+    val windowsCnt = ImageCount(windows31.io.mData.fire, io.sizeIn)
+    val rowValid = windowsCnt.rowCnt.count === fp2.payload.size.rowNum
+    val colValids = Bits(config.DATA_NUM bits)
+    for(sel <- 0 until  config.DATA_NUM){
+        val curCnt = windowsCnt.getSize().setSel(U(sel, log2Up(config.DATA_NUM) bits))
+        colValids(sel) := curCnt.colNum === fp2.payload.size.colNum
+    }
+    val fpWinValid = rowValid && colValids.orR && fp2.valid//特征点和数据位置对应。
+    //4、选择所需数据
+    val sel = OHToUInt(Vec(config.MASK4.map(mask => mask === colValids))) //选择出有效数据 得到key
+    val selData0 = Flow(Vec(Vec(UInt(8 bits), 31), 31))
+    for (j <- 0 to 30) { //选择不同情况的数据进行传输
+        switch(sel) {
+            for (i <- 0 to 7) {
+                is(i) { //偏移i个值
+                    for (k <- 0 to 30) {
+                        selData0.payload(j)(k) := windows31.io.mData.payload(j).asBits.subdivideIn(5 * 8 slices)(k + i + 1).asUInt
+                    }
+                }
+            }
+        }
+    }
+    //5、生成数据有效信号，进行计算
+    selData0.valid := windows31.io.mData.valid && fpWinValid
+    val brief = new BRIEF(BRIEFConfig()) //1
+    val icAngle = new IC_Angle(IC_AngleConfig()) //15
+    val tan = new tan2(tan2Config())
+    val rotate = new Rotate(rotateConfig())
+    brief.io.sData <> selData0
+    icAngle.io.sData <> selData0
+    tan.io.sData <> icAngle.io.mData
+    rotate.io.sDataTan <> tan.io.mData
+    rotate.io.sDataBrief <> brief.io.mData
+    //6、根据有效数据生成ready信号，控制有效节奏
+    val validCnt = WaCounter(selData0.valid, 3, 7)
+    fp2.ready := (selData0.valid && validCnt.valid)
+    windows31.io.mData.ready := (!selData0.valid) || (selData0.valid && validCnt.valid && (fp1.valid && fp1.payload.size.notEqual(fp2.payload.size))) || !fp2.valid
+    //7、缓存结果
+    windows31.io.sData <> io.sDataImage.continueWhen(rotate.io.sReady)
+    val fifoRsBrief = StreamFifo(Bits(64 bits), 1024)
+    rotate.io.mDataRsBrief <> fifoRsBrief.io.push
+    io.mDataRsBrief <> fifoRsBrief.io.pop
+}
+
+
 object RSBrief extends App {
-    SpinalVerilog(new RSBrief(RSBriefConfig())).printPruned
+    SpinalVerilog(new RSBriefOrb(RSBriefConfig())).printPruned
 }

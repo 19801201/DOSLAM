@@ -18,15 +18,15 @@ case class TbRotate(config : rotateConfig) extends Rotate(config){
     }
 
     def init = {
-        clockDomain.forkStimulus(5)
+        clockDomain.forkStimulus(5000)
 
         io.sDataTan.valid #= false
         io.sDataBrief.valid #= false
         //io.start #= false
-        //        io.enPadding(0) #= true
-        //        io.enPadding(1) #= true
-        //        io.enPadding(2) #= false
-        //        io.enPadding(3) #= true
+        //io.enPadding(0) #= true
+        //io.enPadding(1) #= true
+        //io.enPadding(2) #= false
+        //io.enPadding(3) #= true
         //io.rowNumIn #= 640
         //io.colNumIn #= 640 >> 3
         //io.inValid #= 7

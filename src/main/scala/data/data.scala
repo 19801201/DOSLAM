@@ -81,6 +81,14 @@ object dataFlip{
             }
         }
     }
+
+    def apply[T <: Data](input: Vec[T], output: Vec[T], sel: UInt, Flip: Array[(UInt, Array[Int])], useFlip:Boolean = true): Unit = {
+        if(useFlip){
+            apply(input, output, sel, Flip)
+        } else{
+            output := input
+        }
+    }
 }
 
 

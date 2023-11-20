@@ -35,4 +35,8 @@ class ImageSize(SIZE_WIDTH:Int) extends Bundle with IMasterSlave {
     def regNextWhen(wen : Bool) : ImageSize = {
         new ImageSize(this.SIZE_WIDTH, RegNextWhen(colNum, wen, 0), RegNextWhen(rowNum, wen, 0))
     }
+
+    def notEqual(that : ImageSize): Bool = {
+        this.rowNum =/= that.rowNum | this.colNum(this.colNum.getWidth - 1 downto 3) =/= that.colNum(that.colNum.getWidth - 1 downto 3)
+    }
 }

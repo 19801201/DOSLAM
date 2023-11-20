@@ -17,7 +17,7 @@ case class rotateConfig(DATA_NUM : Int = 2,
 
 class Rotate(config:rotateConfig) extends Module{
     val io = new Bundle {//要求valid有效之后数据需要保持8周期的有效值//
-        val sDataTan = slave Flow Bits(5 bits) //求出选择角度
+        val sDataTan = slave Flow UInt(5 bits) //求出选择角度
         val sDataBrief = slave Flow Bits(config.computeNum bits)//传出M01和M10两个数据
         val mDataRsBrief = master Stream Bits(config.computeNum * 2 bits)
         val sReady = out Bool()
@@ -25,7 +25,7 @@ class Rotate(config:rotateConfig) extends Module{
     //1、接收数据
     val fifoTan = StreamFifo(Bits(io.sDataTan.payload.getWidth bits), 16)
     val fifoBrief = StreamFifo(Bits(io.sDataBrief.payload.getWidth bits), 8 * 16)
-    fifoTan.io.push.payload := io.sDataTan.payload
+    fifoTan.io.push.payload := io.sDataTan.payload.asBits
     fifoTan.io.push.valid := io.sDataTan.valid
     fifoBrief.io.push.payload := io.sDataBrief.payload
     fifoBrief.io.push.valid := io.sDataBrief.valid
