@@ -1,5 +1,6 @@
 package TbTop
 
+import operator.operator.dataGenerateImage
 import operator.{GaussianBlur, GaussianBlurConfig}
 import spinal.core._
 import spinal.core.sim._
@@ -188,6 +189,61 @@ object TbFast extends App {
         val path = "F:\\TestData\\slamData\\fast"
         //dut.in("G:\\SpinalHDL_CNN_Accelerator\\simData\\paddingSrc.txt")
         dut.in(path + "\\input.coe")
+        dut.out(path + "\\simDataout.coe",path + "\\opencvDataOutFp.coe")
+    }
+}
+
+case class TbDataGenerateImage() extends dataGenerateImage{
+    def toHexString(width: Int, b: BigInt): String = {
+        var s = b.toString(16)
+        if (s.length < width) {
+            s = "0" * (width - s.length) + s
+        }
+        s
+    }
+
+    def init = {
+        clockDomain.forkStimulus(5000)
+        io.mdata.ready #= true
+        clockDomain.waitSampling(10)
+    }
+
+    def out(dst_scala: String, dst: String): Unit = {
+        clockDomain.waitSampling()
+        val testFile = new PrintWriter(new File(dst_scala))
+        val dstFile = Source.fromFile(dst).getLines().toArray
+        val total = dstFile.length
+        var error = 0
+        var iter = 0
+        var i = 0
+        while (i < 640 * 512) {
+            clockDomain.waitSampling()
+            if (io.mdata.valid.toBoolean && io.mdata.ready.toBoolean) {
+                val temp = dstFile(iter)
+                val data = io.mdata.payload.toBigInt
+                val o = toHexString(8, data)
+                i = i + 1
+                testFile.write(o + "\r\n")
+            }
+        }
+
+        clockDomain.waitSampling(10000)
+        testFile.close()
+        simSuccess()
+    }
+}
+
+object TbDataGenerateImage extends App {
+    val spinalConfig = new SpinalConfig(
+        defaultClockDomainFrequency = FixedFrequency(200 MHz),
+        defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH, resetKind = SYNC)
+    )
+    //SimConfig.withXSim.withWave.withConfig(spinalConfig).compile(new TbMaxPooling()).doSimUntilVoid { dut =>
+    SimConfig.withWave.withConfig(spinalConfig).compile(new TbDataGenerateImage).doSimUntilVoid { dut =>
+        dut.init
+        dut.clockDomain.waitSampling(10)
+        val path = "F:\\TestData\\slamData\\fast"
+        //dut.in("G:\\SpinalHDL_CNN_Accelerator\\simData\\paddingSrc.txt")
         dut.out(path + "\\simDataout.coe",path + "\\opencvDataOutFp.coe")
     }
 }

@@ -35,3 +35,13 @@ class ImageCount[T <: Data](wen:Bool, size : ImageSize) extends Area{
         colCnt.count >= left && colCnt.count <= right
     }
 }
+
+
+
+class accumulator[T <: Data](DATAWIDTH:Int, count : UInt, cen : Bool) extends Area{
+    val accNum = Reg(UInt(DATAWIDTH bits)) init 0
+    accNum := accNum + count
+    when(cen){
+        accNum := count.reversed
+    }
+}

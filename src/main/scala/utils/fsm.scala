@@ -73,3 +73,47 @@ object fsmIVPRF {
         }
     }
 }
+
+
+object fsmIC {
+    def apply[T <: Data](start:Vec[Bool], last:Vec[Bool])  = {
+        new StateMachine {
+            setEncoding(binaryOneHot)
+            val IDLE = new State with EntryPoint
+            val INPUT = new State
+            val COMPUTEINPUT = new State
+            val COMPUTE = new State
+
+            IDLE
+              .whenIsActive {
+                  when(start(0)) {
+                      goto(INPUT)
+                  } elsewhen(start(1)){
+                      goto(COMPUTEINPUT)
+                  }
+              }
+            INPUT
+              .whenIsActive {
+                  when(last(0)) { //图像接收完毕并且窗口 整个图像都已经被传输走
+                      goto(IDLE)
+                  }
+              }
+            COMPUTEINPUT
+              .whenIsActive {
+                  when(last(1)) { //图像接收完毕并且窗口 整个图像都已经被传输走
+                      goto(COMPUTE)
+                      when(last(3)){
+                          goto(IDLE)
+                      }
+                  }
+              }
+            COMPUTE
+              .whenIsActive {
+                  when(last(2)) { //图像接收完毕并且窗口 整个图像都已经被传输走
+                      goto(COMPUTEINPUT)
+                  }
+              }
+        }
+    }
+}
+

@@ -1,10 +1,12 @@
 *.jar
-.bsp
-.idea
-project
+/.bsp/
+/.idea/
+/project/
 target
 simData
-simWorkspace
+/simWorkspace/
 tmp
-verilog
 /tmp/job_1/
+/xsim.dir/
+*.v
+*.wdb
