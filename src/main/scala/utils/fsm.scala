@@ -74,6 +74,21 @@ object fsmIVPRF {
     }
 }
 
+/**
+ * io接口
+ * start0 开启输入数据
+ * start1 开启计算
+ *
+ * last0 输入结束
+ * last1 一个特征值的输入结束
+ * last2 重新进入空闲
+ *
+ * 状态机
+ * IDLE：不接收数据，等等开始指令
+ * INPUT：接收数据这些数据是，整体存储用于特征匹配的
+ * COMPUTEINPUT：接收1组数据用于特征匹配
+ * COMPUTE：计算特征匹配
+ */
 
 object fsmIC {
     def apply[T <: Data](start:Vec[Bool], last:Vec[Bool])  = {
@@ -83,6 +98,7 @@ object fsmIC {
             val INPUT = new State
             val COMPUTEINPUT = new State
             val COMPUTE = new State
+            val READY = new State
 
             IDLE
               .whenIsActive {
@@ -101,16 +117,21 @@ object fsmIC {
             COMPUTEINPUT
               .whenIsActive {
                   when(last(1)) { //图像接收完毕并且窗口 整个图像都已经被传输走
+                      goto(IDLE)
+                  } elsewhen last(0) {
                       goto(COMPUTE)
-                      when(last(3)){
-                          goto(IDLE)
-                      }
                   }
               }
             COMPUTE
               .whenIsActive {
                   when(last(2)) { //图像接收完毕并且窗口 整个图像都已经被传输走
-                      goto(COMPUTEINPUT)
+                      goto(READY)
+                  }
+              }
+            READY
+              .whenIsActive {
+                  when(last(3)){
+                    goto(COMPUTEINPUT)
                   }
               }
         }

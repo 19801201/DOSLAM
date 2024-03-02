@@ -28,6 +28,10 @@ class WaCounter(en: Bool, width: Int, cnt: UInt, InitData: Int) extends Area {
     count := InitData
     valid := False
   }
+
+  def validLast() = {
+    valid && en
+  }
 }
 
 class BootCount(wen:Bool, WIDTH:Int, endCount:UInt){
