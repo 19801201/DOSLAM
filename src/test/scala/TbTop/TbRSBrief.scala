@@ -37,7 +37,7 @@ case class TbRSBrief(config : RSBriefConfig) extends RSBriefOrb(config){
         clockDomain.waitSampling(10)
     }
 
-    def in(srcImage: String, srcFp:String): Unit = {
+    def in(srcImage: String): Unit = {
         val random = new Random()
         fork {
             for (line <- Source.fromFile(srcImage).getLines) {
@@ -48,17 +48,6 @@ case class TbRSBrief(config : RSBriefConfig) extends RSBriefOrb(config){
 //                if (randomInt < 4) clockDomain.waitSampling(randomInt)
             }
             io.sDataImage.valid #= false
-        }
-
-        fork{
-            for (line <- Source.fromFile(srcFp).getLines) {
-                io.sDataFeaturePoint.payload.size.colNum #= BigInt(line.trim.substring(0, 4), 16)
-                io.sDataFeaturePoint.payload.size.rowNum #= BigInt(line.trim.substring(4, 8), 16)
-                io.sDataFeaturePoint.payload.score #= BigInt(line.trim.substring(8, 10), 16)
-                io.sDataFeaturePoint.valid #= true
-                clockDomain.waitSamplingWhere(io.sDataFeaturePoint.ready.toBoolean)
-            }
-            io.sDataFeaturePoint.valid #= false
         }
     }
 
@@ -118,7 +107,7 @@ object TbRSBrief extends App {
         dut.clockDomain.waitSampling(10)
         val path = "F:\\TestData\\slamData\\RSBrief"
         //dut.in("G:\\SpinalHDL_CNN_Accelerator\\simData\\paddingSrc.txt")
-        dut.in(path + "\\ReferenceDataInImage.coe", path + "\\ReferenceDataInKeypoints.coe")
+        dut.in(path + "\\ReferenceDataInImage.coe")
         dut.out(path + "\\simDataout.coe",path + "\\ReferenceDataOutputDescriptors.coe")
     }
 }

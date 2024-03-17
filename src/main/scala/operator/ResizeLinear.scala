@@ -15,7 +15,7 @@ case class ResizeConfig() {
     val WINDOWS_SIZE = 2  //窗口的大小
     val MEM_DEPTH = 1024 //一行图像的个数/8
     //初始化数据
-    val initF = Array(1, 3, 5, 7) //所有数据的初值
+    val initF = Array(1, 3, 5, 7, 0) //所有数据的初值
     val initSelFx = Array(0, 1, 2, 3, 5, 6, 7, 8)
 }
 class ResizeLinear(resizeConfig : ResizeConfig) extends Component{
@@ -29,6 +29,8 @@ class ResizeLinear(resizeConfig : ResizeConfig) extends Component{
         //开始信号
         val rowNumSrcIn = in UInt (resizeConfig.SIZE_WIDTH bits) //窗口的输入大小。输入数据的个数不管到底有多少
         val colNumSrcIn = in UInt (resizeConfig.SIZE_WIDTH bits) //输出数据的大小由上位机给出即可，完全不考虑边界问题。即输入即输出数据量
+
+        val mask = in Bits(8 bits)
     }
     //1、状态机模块
     val fsm = new StateMachine {
@@ -42,8 +44,11 @@ class ResizeLinear(resizeConfig : ResizeConfig) extends Component{
 
       //在这里进行输入控制。a::一定是每来一个数据才曾加1
       //一次输入八个数据这样可以更快的计算，
-      val colCnt = WaCounter(io.sData.fire, resizeConfig.SIZE_WIDTH - 3, io.colNumSrcIn(resizeConfig.SIZE_WIDTH - 1 downto 3) - 1)//从最大值开始
-      val rowCnt = WaCounter(io.sData.fire && colCnt.valid, resizeConfig.SIZE_WIDTH, io.rowNumSrcIn - 1)
+
+
+      val colCnt = WaCounter(io.sData.fire, resizeConfig.SIZE_WIDTH - 3, io.colNumSrcIn)//从最大值开始
+      val rowCnt = WaCounter(io.sData.fire && colCnt.valid, resizeConfig.SIZE_WIDTH, io.rowNumSrcIn)
+      val rowCntValid = WaCounter(io.sData.fire && colCnt.valid, resizeConfig.SIZE_WIDTH, 4)
       //流水线最后一个数据接收到的位置，根据这个位置判断当前计算结果是否满足需求
       //状态跳转
       IDLE
@@ -71,12 +76,16 @@ class ResizeLinear(resizeConfig : ResizeConfig) extends Component{
     fy.init(resizeConfig.initF(0))//每次移动一个单位
     when(io.sData.fire && fsm.colCnt.valid && fsm.rowCnt.valid) { //数据来临的时候需要换到下一个权重，如果在行末，需要重置权重，如果没有数据来临需要保持权重不变
         fy := U(resizeConfig.initF(0), 3 bits)
+        fsm.rowCntValid.clear
     } elsewhen (io.sData.fire && fsm.colCnt.valid) {//到行末，修改值
-        switch(fy(2 downto 1)) {
-            for (j <- 0 to 3) {
-                is(j) {
-                    fy := resizeConfig.initF((j + 1) % 4)
+        switch(fy(2 downto 0)) {
+            for (j <- 0 to 4) {
+                is(resizeConfig.initF((j))) {
+                    fy := resizeConfig.initF((j + 1) % 5)
                 }
+            }
+            default{
+                fy := 0
             }
         }
     }
@@ -98,26 +107,26 @@ class ResizeLinear(resizeConfig : ResizeConfig) extends Component{
     val dataFyMul = Vec(Vec(Reg(UInt(14 bits)), 2), 8)
     val dataFyMulSum = Vec(Reg(UInt(10 bits)), 8)
     //1--------------使用加法代替乘法,每次权重都固定不变,写死
-    for(i <- 0 to 1){//
-        dataFxMul(i * 4)(0) :=  dataSel(i * 4)(0).resized
-        dataFxMul(i * 4)(1) := (dataSel(i * 4)(1) << 3) - dataSel(i * 4)(1)
-        dataFxMul(i * 4)(2) :=  dataSel(i * 4)(3).resized
-        dataFxMul(i * 4)(3) := (dataSel(i * 4)(1) << 3) - dataSel(i * 4)(1)
+    for(i <- 0 to 1){//1,7,3,5,5,3,7,1
+        dataFxMul(i * 4)(0) := (dataSel(i * 4)(0) << 3) - dataSel(i * 4)(0)
+        dataFxMul(i * 4)(1) := dataSel(i * 4)(1).resized
+        dataFxMul(i * 4)(2) := (dataSel(i * 4)(2) << 3) - dataSel(i * 4)(2)
+        dataFxMul(i * 4)(3) := dataSel(i * 4)(3).resized
 
-        dataFxMul(i * 4 + 1)(0) := (dataSel(i * 4 + 1)(0) + dataSel(i * 4 + 1)(0) << 1).resized
-        dataFxMul(i * 4 + 1)(1) := (dataSel(i * 4 + 1)(1) + dataSel(i * 4 + 1)(1) << 2).resized
-        dataFxMul(i * 4 + 1)(2) := (dataSel(i * 4 + 1)(2) + dataSel(i * 4 + 1)(2) << 1).resized
-        dataFxMul(i * 4 + 1)(3) := (dataSel(i * 4 + 1)(3) + dataSel(i * 4 + 1)(3) << 2).resized
+        dataFxMul(i * 4 + 1)(0) := (dataSel(i * 4 + 1)(0) +^ (dataSel(i * 4 + 1)(0) << 2)).resized
+        dataFxMul(i * 4 + 1)(1) := (dataSel(i * 4 + 1)(1) +^ (dataSel(i * 4 + 1)(1) << 1)).resized
+        dataFxMul(i * 4 + 1)(2) := (dataSel(i * 4 + 1)(2) +^ (dataSel(i * 4 + 1)(2) << 2)).resized
+        dataFxMul(i * 4 + 1)(3) := (dataSel(i * 4 + 1)(3) +^ (dataSel(i * 4 + 1)(3) << 1)).resized
 
-        dataFxMul(i * 4 + 2)(0) := (dataSel(i * 4 + 2)(0) + dataSel(i * 4 + 2)(0) << 1).resized
-        dataFxMul(i * 4 + 2)(1) := (dataSel(i * 4 + 2)(1) + dataSel(i * 4 + 2)(1) << 2).resized
-        dataFxMul(i * 4 + 2)(2) := (dataSel(i * 4 + 2)(2) + dataSel(i * 4 + 2)(2) << 1).resized
-        dataFxMul(i * 4 + 2)(3) := (dataSel(i * 4 + 2)(3) + dataSel(i * 4 + 2)(3) << 2).resized
+        dataFxMul(i * 4 + 2)(0) := (dataSel(i * 4 + 2)(0) +^ (dataSel(i * 4 + 2)(0) << 1)).resized
+        dataFxMul(i * 4 + 2)(1) := (dataSel(i * 4 + 2)(1) +^ (dataSel(i * 4 + 2)(1) << 2)).resized
+        dataFxMul(i * 4 + 2)(2) := (dataSel(i * 4 + 2)(2) +^ (dataSel(i * 4 + 2)(2) << 1)).resized
+        dataFxMul(i * 4 + 2)(3) := (dataSel(i * 4 + 2)(3) +^ (dataSel(i * 4 + 2)(3) << 2)).resized
 
-        dataFxMul(i * 4 + 3)(0) := (dataSel(i * 4 + 3)(0) << 3) - dataSel(i * 4 + 3)(0)
-        dataFxMul(i * 4 + 3)(1) :=  dataSel(i * 4 + 3)(1).resized
-        dataFxMul(i * 4 + 3)(2) := (dataSel(i * 4 + 3)(2) << 3) - dataSel(i * 4 + 3)(2)
-        dataFxMul(i * 4 + 3)(3) :=  dataSel(i * 4 + 3)(3).resized
+        dataFxMul(i * 4 + 3)(0) :=  dataSel(i * 4 + 3)(0).resized
+        dataFxMul(i * 4 + 3)(1) :=  (dataSel(i * 4 + 3)(1) << 3) - dataSel(i * 4 + 3)(1)
+        dataFxMul(i * 4 + 3)(2) :=  dataSel(i * 4 + 3)(2).resized
+        dataFxMul(i * 4 + 3)(3) :=  (dataSel(i * 4 + 3)(3) << 3) - dataSel(i * 4 + 3)(3)
     }
     //2--------------对计算结果求和
     for(i <- 0 to 7){
@@ -153,20 +162,20 @@ class ResizeLinear(resizeConfig : ResizeConfig) extends Component{
             op(0) := True
             op(1) := True
             switch(dfy(2 downto 1)) {//参数选择
-                is(0) { //不变和8+1 1 7
+                is(3) { //不变和8-1 1 7
                     opNum1(0) := U"14'b0"
-                    opNum1(1) := (dataFxMulSum(i)(0) @@ U"3'b0").resized
+                    opNum1(1) := (dataFxMulSum(i)(1) @@ U"3'b0").resized
                     op(1) := False
                 }
-                is(1) { //2+1 和8-1 3 5
+                is(2) { //2+1 和4+1 3 5
                     opNum1(0) := (dataFxMulSum(i)(0) @@ U"1'b0").resized
                     opNum1(1) := (dataFxMulSum(i)(1) @@ U"2'b0").resized
                 }
-                is(2) { //4+1 and 4+1 5 3
+                is(1) { //4+1 and 4+1 5 3
                     opNum1(0) := (dataFxMulSum(i)(0) @@ U"2'b0").resized
                     opNum1(1) := (dataFxMulSum(i)(1) @@ U"1'b0").resized
                 }
-                is(3) { //and 8-1 and 7 + 1
+                is(0) { //and 8-1 and 7 + 1
                     opNum1(0) := (dataFxMulSum(i)(0) @@ U"3'b0").resized
                     opNum1(1) := U"14'b0"
                     op(0) := False
@@ -192,9 +201,14 @@ class ResizeLinear(resizeConfig : ResizeConfig) extends Component{
     }
     io.sData.ready := sReady && fsm.isActive(fsm.VALID)
     for(i <- 0 to 7){
-        fifo.io.push.payload.subdivideIn(resizeConfig.DATA_SIZE slices)(i) := dataFyMulSum(i).asBits(9 downto 2)
+        when(Delay(io.mask(i) && fsm.colCnt.valid, 5)) {
+            fifo.io.push.payload.subdivideIn(resizeConfig.DATA_SIZE slices)(i) := 0
+        } otherwise {
+            fifo.io.push.payload.subdivideIn(resizeConfig.DATA_SIZE slices)(i) := dataFyMulSum(i).asBits(9 downto 2)
+        }
+
     }
-    fifo.io.push.valid <> Delay(io.sData.fire, 5)//给定的数据延迟若干个周期
+    fifo.io.push.valid <> Delay(io.sData.fire && !fsm.rowCntValid.valid, 5)//给定的数据延迟若干个周期
     fifo.io.pop <> io.mData//得到的结果直接传递给外部
 }
 
