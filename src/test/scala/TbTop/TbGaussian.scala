@@ -33,9 +33,13 @@ class TbGaussian(config: GaussianConfig) extends Gaussian(config){
     io.colNumIn #= (col + 7)/8 - 1
     if(col % 8 == 0){
       io.inValid #= 7
+      io.mask #= 0x00
     } else {
       io.inValid #= (col % 8) - 1
+      io.mask #= (~((1 << (col % 8)) - 1)) & 0xff
     }
+
+
 
     io.mData.ready #= false
     clockDomain.waitSampling(10)
@@ -48,9 +52,9 @@ class TbGaussian(config: GaussianConfig) extends Gaussian(config){
         io.sData.payload #= BigInt(line.trim, 16)
         io.sData.valid #= true
         clockDomain.waitSamplingWhere(io.sData.ready.toBoolean)
-//        io.sData.valid #= false
-//        val randomInt = random.nextInt(25)
-//        if (randomInt < 4) clockDomain.waitSampling(randomInt)
+        io.sData.valid #= false
+        val randomInt = random.nextInt(25)
+        if (randomInt < 4) clockDomain.waitSampling(randomInt)
       }
     }
   }
@@ -110,10 +114,10 @@ object TbGaussian extends App {
   )
   //SimConfig.withXSim.withWave.withConfig(spinalConfig).compile(new TbMaxPooling()).doSimUntilVoid { dut =>
   SimConfig.withXilinxDevice("xq7vx690trf1157-2I").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.withConfig(spinalConfig).compile(new TbGaussian(GaussianConfig())).doSimUntilVoid { dut =>
-    dut.init(480, 640)
+    dut.init(480, 647)
     dut.io.start #= true
     dut.clockDomain.waitSampling(10)
-    val path = "C:\\myData\\data\\xsim_data\\slam\\GaussianBlur"
+    val path = "C:\\myData\\data\\xsim_data\\slam\\GaussianBlur647480"
     //dut.in("G:\\SpinalHDL_CNN_Accelerator\\simData\\paddingSrc.txt")
     dut.in(path + "\\SourceDataIn.txt")
     dut.out(path + "\\simDataout.coe",path + "\\ReferenceDataOut.txt")

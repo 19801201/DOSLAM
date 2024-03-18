@@ -27,6 +27,7 @@ class GaussianBlur(config:GaussianBlurConfig) extends Module{
         val rowNumIn = in UInt (config.SIZE_WIDTH bits)
         val colNumIn = in UInt (config.SIZE_WIDTH bits)
         val inValid = in Bits (3 bits)
+        val mask = in Bits(8 bits)
     }
     //向量与固定的常量相乘，使用加法运算替代。
     def vectorDotProduct(inputData: Vec[UInt], outputData: UInt): Unit = {
@@ -78,6 +79,17 @@ class GaussianBlur(config:GaussianBlurConfig) extends Module{
             output(0) := temp(6)
             output(1) := temp(5)
             output(2) := temp(4)
+        } elsewhen (sel === 3) {
+            switch(inValid){
+                output := temp
+                is(0){
+                    output(12) := temp(10)
+                    output(13) := temp(9)
+                }
+                is(1){
+                    output(13) := temp(11)
+                }
+            }
         } otherwise {//右复制
             switch(inValid){
                 output := temp
@@ -110,7 +122,9 @@ class GaussianBlur(config:GaussianBlurConfig) extends Module{
             sel := 2
         } elsewhen (colCnt.count === U(1, colCnt.count.getWidth bits)){
             sel := 1
-        } otherwise {
+        } elsewhen (colCnt.valid){
+            sel := 3
+        }otherwise {
             sel := 0
         }
 
@@ -148,11 +162,16 @@ class GaussianBlur(config:GaussianBlurConfig) extends Module{
     //结果延迟3个周期,共延迟8个周期
     for(i <- 0 to 7){//vectorDotProduct延迟三个周期 Datax延迟一个周期，payload延迟一个周期。
         vectorDotProduct(outputData(i), Datax(i))
-        when(Datax(i)(13)){
-            io.mData.payload.subdivideIn(8 slices)(i) := (Datax(i)(8 + 7 + 7 - 1 downto 14) + 1).asBits
-        } otherwise{
-            io.mData.payload.subdivideIn(8 slices)(i) := Datax(i)(8 + 7 + 7 - 1 downto 14).asBits
+        when(Delay(io.mask(i) && !fsm.colCnt.count.orR, 9)){
+            io.mData.payload.subdivideIn(8 slices)(i) := B(0, config.DATA_WIDTH bits)
+        } otherwise {
+            when(Datax(i)(13)){
+                io.mData.payload.subdivideIn(8 slices)(i) := (Datax(i)(8 + 7 + 7 - 1 downto 14) + 1).asBits
+            } otherwise{
+                io.mData.payload.subdivideIn(8 slices)(i) := Datax(i)(8 + 7 + 7 - 1 downto 14).asBits
+            }
         }
+
     }
     //延迟一个周期一共9个周期。
     io.mData.payload.setAsReg()//增加一个周期

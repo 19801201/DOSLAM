@@ -31,6 +31,7 @@ class Gaussian(config:GaussianConfig) extends Module{
     val rowNumIn = in UInt (config.SIZE_WIDTH bits)
     val colNumIn = in UInt (config.SIZE_WIDTH bits)
     val inValid = in Bits (3 bits)
+    val mask = in Bits(8 bits)
   }
 
   val rfWindows = new ReflectionFillWindow(ReflectionFillWindowConfig())
@@ -44,6 +45,7 @@ class Gaussian(config:GaussianConfig) extends Module{
   compute.io.colNumIn := io.colNumIn
   compute.io.rowNumIn := io.rowNumIn
   compute.io.inValid := io.inValid
+  compute.io.mask := io.mask
 
   rfWindows.io.mReady := RegNext(fifo.io.availability > 50, True)
   //数据流
