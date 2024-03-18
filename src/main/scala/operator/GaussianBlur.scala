@@ -102,15 +102,15 @@ class GaussianBlur(config:GaussianBlurConfig) extends Module{
         val VALID = new State
         val END = new State
 
-        val colCnt = WaCounter(isActive(VALID) && io.sData.valid, io.colNumIn.getWidth, io.colNumIn - 1)
-        val rowCnt = WaCounter(isActive(VALID) && io.sData.valid && colCnt.valid, io.rowNumIn.getWidth, io.rowNumIn - 1)
+        val colCnt = WaCounter(isActive(VALID) && io.sData.fire, io.colNumIn.getWidth, io.colNumIn)
+        val rowCnt = WaCounter(isActive(VALID) && io.sData.fire && colCnt.valid, io.rowNumIn.getWidth, io.rowNumIn)
 
         val sel = Reg(Bits(2 bits)) init(0)
-        when(!colCnt.count.orR){//满足这个条件说明是第一个数据
-            sel := 1
-        } elsewhen(colCnt.valid){//满足这个条件说明数据，
+        when(!colCnt.count.orR){
             sel := 2
-        } otherwise{
+        } elsewhen (colCnt.count === U(1, colCnt.count.getWidth bits)){
+            sel := 1
+        } otherwise {
             sel := 0
         }
 
@@ -123,7 +123,7 @@ class GaussianBlur(config:GaussianBlurConfig) extends Module{
           }
         VALID
           .whenIsActive { //行列都为0
-              when(io.sData.fire && colCnt.valid && rowCnt.valid) {
+              when(isActive(VALID) && io.sData.fire && colCnt.valid && rowCnt.valid) {
                   goto(END)
               }
           }
@@ -143,8 +143,8 @@ class GaussianBlur(config:GaussianBlurConfig) extends Module{
     //第二阶段的计算，计算水平方向上的向量乘法,首先对数据左右进行反射填充，然后选出需要的数据。最后传给vectorDotProduct模块进行计算。
     //延迟两个个周期，sel在第4个周期给出，
     val outputData = Vec(Vec(UInt(15 bits), config.WINDOWS_SIZE_H), config.DATA_NUM)
-    val wen = Delay(io.sData.valid || fsm.isActive(fsm.END), 3)//三个周期之后有效数据到达这里
-    vectorWindow(Datay, outputData, wen: Bool, Delay(fsm.sel, 4) : Bits, io.inValid) //那怕只有一个也需要计算所以
+    val wen = Delay(fsm.isActive(fsm.VALID) && io.sData.valid || fsm.isActive(fsm.END), 3)//三个周期之后有效数据到达这里
+    vectorWindow(Datay, outputData, wen: Bool, Delay(fsm.sel, 3) : Bits, io.inValid) //那怕只有一个也需要计算所以
     //结果延迟3个周期,共延迟8个周期
     for(i <- 0 to 7){//vectorDotProduct延迟三个周期 Datax延迟一个周期，payload延迟一个周期。
         vectorDotProduct(outputData(i), Datax(i))
@@ -156,7 +156,7 @@ class GaussianBlur(config:GaussianBlurConfig) extends Module{
     }
     //延迟一个周期一共9个周期。
     io.mData.payload.setAsReg()//增加一个周期
-    io.mData.valid := Delay(((io.sData.valid && (fsm.colCnt.count.orR || fsm.rowCnt.count.orR))|| fsm.isActive(fsm.END)), 10) //延迟4个周期输出
+    io.mData.valid := Delay(((fsm.isActive(fsm.VALID) && io.sData.fire && (fsm.colCnt.count.orR || fsm.rowCnt.count.orR))|| fsm.isActive(fsm.END)), 10) //延迟4个周期输出
 }
 
 

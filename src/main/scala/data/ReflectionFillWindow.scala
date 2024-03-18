@@ -63,8 +63,8 @@ class ReflectionFillWindow(config:ReflectionFillWindowConfig) extends Module{
         //两种情况下会输出有效数据，第一种接收到有效数据，第二种mready为真，输出有效数据
         val cen = (isActive(VALID) && io.sData.fire) || (isActive(DOWN) && io.mReady)
 
-        val colCnt = WaCounter(cen, io.colNumIn.getWidth, io.colNumIn - 1)
-        val rowCnt = WaCounter(io.sData.fire && colCnt.valid, io.rowNumIn.getWidth, io.rowNumIn - 1)
+        val colCnt = WaCounter(cen, io.colNumIn.getWidth, io.colNumIn)
+        val rowCnt = WaCounter(io.sData.fire && colCnt.valid, io.rowNumIn.getWidth, io.rowNumIn)
         val downCnt = WaCounter(isActive(DOWN) && io.mReady && colCnt.valid, 2, 2)
 
         IDLE
@@ -92,7 +92,7 @@ class ReflectionFillWindow(config:ReflectionFillWindowConfig) extends Module{
     }
 
     val rdData = Vec(Bits(config.DATA_STREAM_WIDTH bits), config.WINDOWS_SIZE_H)
-    rowMem(rdData, io.sData.payload, fsm.cen, io.colNumIn - 1)
+    rowMem(rdData, io.sData.payload, fsm.cen, io.colNumIn)
     io.sData.ready := fsm.isActive(fsm.VALID) && io.mReady//这个数据有效时才进数据
     io.mData.valid := RegNext((fsm.isActive(fsm.VALID) && io.sData.fire && fsm.rowCnt.count > 2) || (fsm.isActive(fsm.DOWN) && io.mReady))
 
