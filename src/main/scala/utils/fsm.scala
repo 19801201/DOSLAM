@@ -74,6 +74,65 @@ object fsmIVPRF {
     }
 }
 
+
+object fsmIVPPRF {
+  def apply[T <: Data](start:Bool, wens : Bool, wenm : Bool, sizeIn : ImageSize, PADDING_ROW : Int, PADDING_COL:Int) = {
+    new StateMachine {
+      setEncoding(binaryOneHot)
+      val IDLE = new State with EntryPoint
+      val VALID = new State
+      val PADDINGROW = new State
+      val PADDINGCOL = new State
+      val READY = new State
+      val FLUSH = new State
+
+      //接收整张图片计数
+      val validCnt = ImageCount(wens && isActive(VALID), sizeIn)
+      //补充行padding计数
+      val paddingCnt = ImageCount(wens && isActive(PADDINGROW), sizeIn.colNum, U(PADDING_ROW - 1, sizeIn.colNum.getWidth bits))
+      //补充列padding计数
+      val paddingColCnt = WaCounter(wens && isActive(PADDINGCOL), sizeIn.colNum.getWidth, U(PADDING_COL - 1))
+      //全部输出计数
+      val readyCnt = ImageCount(wenm, sizeIn)
+
+      IDLE
+        .whenIsActive {
+          when(start.rise()) {
+            goto(VALID)
+          }
+        }
+      VALID
+        .whenIsActive {
+          when(validCnt.fireCnt) { //图像接收完毕并且窗口 整个图像都已经被传输走
+            goto(PADDINGROW)
+          }
+        }
+      PADDINGROW
+        .whenIsActive {
+          when(paddingCnt.fireCnt) { //图像接收完毕并且窗口 整个图像都已经被传输走
+            goto(PADDINGCOL)
+          }
+        }
+      PADDINGCOL
+        .whenIsActive {
+          when(paddingColCnt.validLast()) { //图像接收完毕并且窗口 整个图像都已经被传输走
+            goto(READY)
+          }
+        }
+      READY
+        .whenIsActive {
+          when(readyCnt.fireCnt) { //图像接收完毕并且窗口 整个图像都已经被传输走
+            goto(FLUSH)
+          }
+        }
+      FLUSH
+        .whenIsActive { //图像接收完毕并且窗口 整个图像都已经被传输走
+            goto(IDLE)
+        }
+    }
+  }
+}
+
 /**
  * io接口
  * start0 开启输入数据

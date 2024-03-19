@@ -336,7 +336,7 @@ class NMS1(config:NMSConfig) extends Module {
     //得到根据生成的满足结果，产生mask码，选择这一位结果
     //不断产生数据
     //1、产生3行数据
-    val windows = new syncWindowsPadding(config.windows33)
+    val windows = new syncWindowsPadding2(config.windows33)
     windows.io.start := io.start
     windows.io.sizeIn := io.sizeIn
     windows.io.sData <> io.sData

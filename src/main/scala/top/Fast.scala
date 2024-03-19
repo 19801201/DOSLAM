@@ -145,6 +145,7 @@ class FastOrbSmall(config:FastConfig) extends Module{
         //开始信号
         val sizeIn = slave(new ImageSize(config.SIZE_WIDTH))
         val threshold = in UInt (config.DATA_WIDTH bits)
+        val mask = in Bits(16 bits)
     }
     //1、生成窗口
     val fifoReady = Bool()
@@ -214,7 +215,12 @@ class FastOrbSmall(config:FastConfig) extends Module{
     when(score.io.mData.fire){
         saveData.write(saveKey, score.io.mData.payload)
     }
-    fifo.io.push.payload := saveData.asBits
+    val validMaskCnt = WaCounter(fifo.io.push.fire, config.SIZE_WIDTH, io.sizeIn.colNum)
+    val validMaskValidS = validMaskCnt.count === RegNext(io.sizeIn.colNum - 1)
+    for(i <- 0 until config.DATA_NUM){
+        fifo.io.push.payload.subdivideIn(config.DATA_NUM slices)(i) := (validMaskCnt.validLast() && io.mask(i) || validMaskValidS && io.mask(i + 8)).mux(B(0, config.DATA_WIDTH bits), saveData(i))
+    }
+
     fifo.io.push.valid := Delay((saveCurMaxPointValid.subdivideIn(config.DATA_NUM slices).map(p => p.asUInt).reduceBalancedTree(_ +^ _) <= U"3'b1") && Delay(fastDetectionWindows_r.valid, 4), 1)
     //将结果传给NMS
     val nms = new NMS1(NMSConfig())
@@ -393,7 +399,7 @@ class OrbFast(config:FastConfig) extends Module{
         nms.io.mData <> io.mData
     }
 }
-//原始的fast特征检测，NMS反压应该存在错误，替换位NMS1应该可以正常使用，使用老版的特征检测
+//原始的fast特征检测，NMS反压应该存在错误，替换位NMS1应该可以正常使用，使用老版的特征检测，暂时不用了
 class Fast(config:FastConfig) extends Module{
     val io = new Bundle {//给出输入得到输出结果
         //增加运行速度，一次传输多个个数据

@@ -1,5 +1,6 @@
 package TbTop
 
+import TbTop.TbResize.spinalConfig
 import operator.operator.dataGenerateImage
 import operator.{GaussianBlur, GaussianBlurConfig}
 import spinal.core._
@@ -9,6 +10,7 @@ import java.io.{File, PrintWriter}
 import scala.io.Source
 import top._
 
+import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 case class TbFast(config : FastConfig) extends Fast(config){
     def toHexString(width: Int, b: BigInt): String = {
@@ -101,15 +103,27 @@ case class TbFastOrb1(config : FastConfig) extends FastOrbSmall(config){
         s
     }
 
-    def init = {
-        clockDomain.forkStimulus(5)
+    def matchMask(x: Int) : Int = {x match {
+        case 0 => 0x00e0 //0000 0000 1110 0000
+        case 7 => 0x0070 //0000 0000 0111 0000
+        case 6 => 0x0038 //0000 0000 0011 1000
+        case 5 => 0x001c //0000 0000 0001 1100
+        case 4 => 0x000e //0000 0000 0000 1110
+        case 3 => 0x0007 //0000 0000 0000 0111
+        case 2 => 0x8003 //1000 0000 0000 0011
+        case 1 => 0xc001 //1100 0000 0000 0001
+    }}
 
+    def init(row:Int,col:Int,threshold:Int) = {
+        clockDomain.forkStimulus(5000)
         io.sData.valid #= false
         io.sData.payload #= 0
         io.start #= false
-        io.sizeIn.rowNum #= 480 - 1
-        io.sizeIn.colNum #= (640 >> 3) - 1
-        io.threshold #= 40
+        io.sizeIn.rowNum #= row - 1
+        io.sizeIn.colNum #= ((col+7) >> 3) - 1
+        io.threshold #= threshold
+        io.mask #= matchMask(col % 8)
+
         io.mData.ready #= false
         clockDomain.waitSampling(10)
     }
@@ -121,9 +135,9 @@ case class TbFastOrb1(config : FastConfig) extends FastOrbSmall(config){
                 io.sData.payload #= BigInt(line.trim, 16)
                 io.sData.valid #= true
                 clockDomain.waitSamplingWhere(io.sData.ready.toBoolean)
-                io.sData.valid #= false
-                val randomInt = random.nextInt(25)
-                if (randomInt < 4) clockDomain.waitSampling(randomInt)
+//                io.sData.valid #= false
+//                val randomInt = random.nextInt(25)
+//                if (randomInt < 4) clockDomain.waitSampling(randomInt)
             }
         }
     }
@@ -138,8 +152,8 @@ case class TbFastOrb1(config : FastConfig) extends FastOrbSmall(config){
         var i = 0
         while (i < dstFile.length) {
             clockDomain.waitSampling()
-//            io.mData.ready #= true
-            io.mData.ready.randomize()
+            io.mData.ready #= true
+//            io.mData.ready.randomize()
             if (io.mData.valid.toBoolean && io.mData.ready.toBoolean) {
                 io.start #= false
                 val temp = dstFile(iter)
@@ -148,7 +162,7 @@ case class TbFastOrb1(config : FastConfig) extends FastOrbSmall(config){
                 val data = io.mData.payload.score.toInt
                 val o = toHexString(4, colNum) + toHexString(4, rowNum) + toHexString(2, data)
 //                val o = toHexString(16, io.mData.payload.toBigInt)
-                //println(o)
+                println(o)
                 if (!temp.equals(o)) {
                     error = error + 1
                     if(error < 100){
@@ -171,6 +185,7 @@ case class TbFastOrb1(config : FastConfig) extends FastOrbSmall(config){
         }
 
         sleep(100)
+        clockDomain.waitSampling(100000)
         testFile.close()
         simSuccess()
     }
@@ -182,13 +197,13 @@ object TbFast extends App {
         defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH, resetKind = SYNC)
     )
     //SimConfig.withXSim.withWave.withConfig(spinalConfig).compile(new TbMaxPooling()).doSimUntilVoid { dut =>
-    SimConfig.withWave.withConfig(spinalConfig).compile(new TbFastOrb1(FastConfig())).doSimUntilVoid { dut =>
-        dut.init
+    SimConfig.withXilinxDevice("xq7vx690trf1157-2I").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.withConfig(spinalConfig).compile(new TbFastOrb1(FastConfig())).doSimUntilVoid { dut =>
+        dut.init(480, 647, 20)
         dut.io.start #= true
         dut.clockDomain.waitSampling(10)
-        val path = "F:\\TestData\\slamData\\fast"
+        val path = "C:\\myData\\data\\xsim_data\\slam\\Fast647480"
         //dut.in("G:\\SpinalHDL_CNN_Accelerator\\simData\\paddingSrc.txt")
-        dut.in(path + "\\input.coe")
+        dut.in(path + "\\SourceDataIn.txt")
         dut.out(path + "\\simDataout.coe",path + "\\opencvDataOutFp.coe")
     }
 }

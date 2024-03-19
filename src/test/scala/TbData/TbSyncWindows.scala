@@ -1,18 +1,19 @@
 package TbData
 
-import data.{Windows, WindowsConfig, syncWindows, syncWindowsPadding}
+import data.{Windows, WindowsConfig, syncWindows, syncWindowsPadding, syncWindowsPadding2}
 import spinal.core._
 import spinal.core.sim._
 
 import scala.util.Random
 import java.io.{File, PrintWriter}
+import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 //测试通过 2 1 下一次测试，每五行删除一行数据
-class TbSyncWindows(config : WindowsConfig) extends syncWindowsPadding (config) {
+class TbSyncWindows(config : WindowsConfig) extends syncWindowsPadding2 (config) {
     val random = new Random()
     val ValidRandomTest = true
-    fsm.validCnt.colCnt.count.simPublic()
-    fsm.validCnt.rowCnt.count.simPublic()
+//    fsm.validCnt.colCnt.count.simPublic()
+//    fsm.validCnt.rowCnt.count.simPublic()
     def toHexString(width: Int, b: BigInt): String = {
         var s = b.toString(16)
         if (s.length < width) {
@@ -29,8 +30,8 @@ class TbSyncWindows(config : WindowsConfig) extends syncWindowsPadding (config) 
         io.mData.ready #= false
         io.start #= false
 
-        io.sizeIn.rowNum #= 480 - 1
-        io.sizeIn.colNum #= (640 / 8) - 1
+        io.sizeIn.rowNum #= 120 - 1
+        io.sizeIn.colNum #= (160 / 8) - 1
         clockDomain.waitSampling(10)
     }
 
@@ -75,7 +76,7 @@ class TbSyncWindows(config : WindowsConfig) extends syncWindowsPadding (config) 
                         if (!temp.equals(o)) {
                             error = error + 1
                             printf(i + "\n");
-                            printf("row:%d, col:%d\n", fsm.validCnt.rowCnt.count.toInt, fsm.validCnt.colCnt.count.toInt)
+//                            printf("row:%d, col:%d\n", fsm.validCnt.rowCnt.count.toInt, fsm.validCnt.colCnt.count.toInt)
                             printf("h:%d, w:%d\n", h, w)
 //                            if(error > 20){
 //                                i+=999999
@@ -110,13 +111,14 @@ object TbSyncWindows extends App {
         defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH, resetKind = SYNC)
     )
     val dataGenerateRow31Config = WindowsConfig(DATA_NUM = 8, WINDOWS_SIZE_H = 7, WINDOWS_SIZE_W = 3,
-        MEM_DEPTH = 128)
+        MEM_DEPTH = 1024)
 
-    //SimConfig.withXSim.withWave.withConfig(spinalConfig).compile(new TbMaxPooling()).doSimUntilVoid { dut =>
-    SimConfig.withWave.withConfig(spinalConfig).compile(new TbSyncWindows(dataGenerateRow31Config)).doSimUntilVoid { dut =>
+    val dataGenerateRow33Config = WindowsConfig(DATA_NUM = 8, WINDOWS_SIZE_H = 3, WINDOWS_SIZE_W = 3, MEM_DEPTH = 1024)
+
+    SimConfig.withXilinxDevice("xq7vx690trf1157-2I").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.compile(new TbSyncWindows(dataGenerateRow33Config)).doSimUntilVoid { dut =>
         dut.init
         dut.io.start #= true
-        val path = "F:\\TestData\\slamData\\ReflectionFillWindow"
+        val path = "C:\\myData\\data\\xsim_data\\slam\\ReflectionFillWindow3_3"
         dut.in(path + "\\ReferenceDataIn.txt")
         dut.out(path + "\\dstDataOut.txt",path + "\\ReferenceDataOut.txt")
     }

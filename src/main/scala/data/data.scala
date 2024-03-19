@@ -53,6 +53,27 @@ object WindowsBuf{
     }
 }
 
+object WindowsBufDelay{
+    def apply[T<:Data](rdData: Flow[Vec[T]], WINDOWS_SIZE_W:Int): Vec[Vec[T]] = {
+        val windows = Vec(Vec(weakCloneOf(rdData.payload.head), WINDOWS_SIZE_W), rdData.payload.size)
+        for (h <- 0 until rdData.payload.size) {
+            for (w <- 0 until WINDOWS_SIZE_W) {
+                if (w == WINDOWS_SIZE_W - 1) {
+                    when(rdData.fire){
+                        windows(h)(w) := rdData.payload(h)
+                    }
+                } else {
+                    when(rdData.fire) {
+                        windows(h)(w) := windows(h)(w + 1)
+                    }
+                }
+                windows(h)(w).setAsReg()
+            }
+        }
+        windows
+    }
+}
+
 /**
  * 对称映射一个数据
  */
