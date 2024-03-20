@@ -20,7 +20,7 @@ case class BRIEFConfig(DATA_NUM : Int = 31,
     val currentDir: String = System.getProperty("user.dir")
     println(currentDir)
     //F:\Project\SpinalHDLProject\SpinalHDLOrbSlamAccelerator
-    val filename: String = "F:\\Project\\SpinalHDLProject\\SpinalHDLOrbSlamAccelerator\\src\\main\\data\\Coordinate.dat"
+    val filename: String = "C:\\myData\\data\\spinalHDL\\orb-slam-acc\\src\\main\\data\\Coordinate.dat"
     val separator: String = ","
     val lines: Seq[String] = Source.fromFile(filename).getLines.toSeq
     val array: Array[Array[Int]] = lines.map(_.split(separator).map(_.trim.toInt)).toArray

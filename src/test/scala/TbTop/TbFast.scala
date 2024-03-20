@@ -94,7 +94,7 @@ case class TbFast(config : FastConfig) extends Fast(config){
     }
 }
 
-case class TbFastOrb1(config : FastConfig) extends FastOrbSmall(config){
+case class TbFastOrb1(config : FastConfig) extends FastOrbFull(config){
     def toHexString(width: Int, b: BigInt): String = {
         var s = b.toString(16)
         if (s.length < width) {
@@ -135,9 +135,9 @@ case class TbFastOrb1(config : FastConfig) extends FastOrbSmall(config){
                 io.sData.payload #= BigInt(line.trim, 16)
                 io.sData.valid #= true
                 clockDomain.waitSamplingWhere(io.sData.ready.toBoolean)
-//                io.sData.valid #= false
-//                val randomInt = random.nextInt(25)
-//                if (randomInt < 4) clockDomain.waitSampling(randomInt)
+                io.sData.valid #= false
+                val randomInt = random.nextInt(25)
+                if (randomInt < 4) clockDomain.waitSampling(randomInt)
             }
         }
     }
@@ -152,8 +152,8 @@ case class TbFastOrb1(config : FastConfig) extends FastOrbSmall(config){
         var i = 0
         while (i < dstFile.length) {
             clockDomain.waitSampling()
-            io.mData.ready #= true
-//            io.mData.ready.randomize()
+//            io.mData.ready #= true
+            io.mData.ready.randomize()
             if (io.mData.valid.toBoolean && io.mData.ready.toBoolean) {
                 io.start #= false
                 val temp = dstFile(iter)
@@ -198,10 +198,10 @@ object TbFast extends App {
     )
     //SimConfig.withXSim.withWave.withConfig(spinalConfig).compile(new TbMaxPooling()).doSimUntilVoid { dut =>
     SimConfig.withXilinxDevice("xq7vx690trf1157-2I").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.withConfig(spinalConfig).compile(new TbFastOrb1(FastConfig())).doSimUntilVoid { dut =>
-        dut.init(480, 647, 20)
+        dut.init(480, 640, 20)
         dut.io.start #= true
         dut.clockDomain.waitSampling(10)
-        val path = "C:\\myData\\data\\xsim_data\\slam\\Fast647480"
+        val path = "C:\\myData\\data\\xsim_data\\slam\\Fast640480"
         //dut.in("G:\\SpinalHDL_CNN_Accelerator\\simData\\paddingSrc.txt")
         dut.in(path + "\\SourceDataIn.txt")
         dut.out(path + "\\simDataout.coe",path + "\\opencvDataOutFp.coe")

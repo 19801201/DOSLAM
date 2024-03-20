@@ -112,13 +112,14 @@ object TbSyncWindows extends App {
     )
     val dataGenerateRow31Config = WindowsConfig(DATA_NUM = 8, WINDOWS_SIZE_H = 7, WINDOWS_SIZE_W = 3,
         MEM_DEPTH = 1024)
-
+    val dataGenerateRow73Config = WindowsConfig(DATA_NUM = 8, WINDOWS_SIZE_H = 7, WINDOWS_SIZE_W = 3,
+        MEM_DEPTH = 1024)
     val dataGenerateRow33Config = WindowsConfig(DATA_NUM = 8, WINDOWS_SIZE_H = 3, WINDOWS_SIZE_W = 3, MEM_DEPTH = 1024)
 
-    SimConfig.withXilinxDevice("xq7vx690trf1157-2I").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.compile(new TbSyncWindows(dataGenerateRow33Config)).doSimUntilVoid { dut =>
+    SimConfig.withXilinxDevice("xq7vx690trf1157-2I").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.compile(new TbSyncWindows(dataGenerateRow73Config)).doSimUntilVoid { dut =>
         dut.init
         dut.io.start #= true
-        val path = "C:\\myData\\data\\xsim_data\\slam\\ReflectionFillWindow3_3"
+        val path = "C:\\myData\\data\\xsim_data\\slam\\ReflectionFillWindow7_3"
         dut.in(path + "\\ReferenceDataIn.txt")
         dut.out(path + "\\dstDataOut.txt",path + "\\ReferenceDataOut.txt")
     }
