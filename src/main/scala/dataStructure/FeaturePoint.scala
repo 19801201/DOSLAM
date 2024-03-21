@@ -38,6 +38,17 @@ class FeaturePointOrb(SIZE_WIDTH : Int, DATA_WIDTH : Int) extends Bundle {
 //    }
 }
 
+
+//with IMasterSlave
+class OrbFpRsIO(SIZE_WIDTH : Int, DATA_WIDTH : Int) extends Bundle with IMasterSlave{
+    val fp = new FeaturePointOrb(SIZE_WIDTH, DATA_WIDTH)
+    val rs = Bits(256 bits)
+
+    override def asMaster(): Unit = {
+        out(fp, rs)
+    }
+}
+
 case class BfMatchIO(indxWidth:Int = 12, distance:Int = 8) extends Bundle with IMasterSlave {
     val index = Vec(UInt(indxWidth bits), 2)
     val distant = UInt(distance bits)
