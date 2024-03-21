@@ -34,7 +34,7 @@ class ORB_Compute(config : ORB_ComputeConfig) extends Module{
     //数据通道
     val sData = slave Stream Bits(config.DATA_STREAM_WIDTH bits)//图片输入
     val mDataImage = master Stream Bits(config.DATA_STREAM_WIDTH bits)//缩放后的图片输出
-    val mdata = master Stream new OrbFpRsIO(config.SIZE_WIDTH, config.DATA_WIDTH)
+    val mData = master Stream new OrbFpRsIO(config.SIZE_WIDTH, config.DATA_WIDTH)
     //输入信号和输出信号，确保size*size个数据同时输出
     val start = in Bool()//开始信号
     //开始信号
@@ -89,7 +89,7 @@ class ORB_Compute(config : ORB_ComputeConfig) extends Module{
   dataSum.io.sData <> fpDrop.io.mData.toFlowFire
   dataSum.io.sDataRsBrief <> rsBrief.io.mDataRsBrief
 
-  dataSum.io.mdata <> io.mdata
+  dataSum.io.mdata <> io.mData
   //控制流
   resize.io.start := io.start
   fast.io.start := io.start
