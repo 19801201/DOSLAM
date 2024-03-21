@@ -21,7 +21,6 @@ case class computeConfig(DATA_NUM : Int = 8,
     val DATA_STREAM_WIDTH = DATA_WIDTH * DATA_NUM
 
     val dataGenerateRow7Config = ReflectionFillWindowConfig(DATA_NUM = 8, MEM_DEPTH = 1024, SIZE_WIDTH = SIZE_WIDTH)
-
 }
 
 class compute(config:computeConfig) extends Module {
@@ -84,6 +83,4 @@ class compute(config:computeConfig) extends Module {
         windows.io.mData
         //这个信号如果拉低，下级模块
     }
-
-
 }

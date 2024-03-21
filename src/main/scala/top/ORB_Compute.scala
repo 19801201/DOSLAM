@@ -1,5 +1,5 @@
 package top
-import dataStructure.{FeaturePoint, FeaturePointOrb}
+import dataStructure.{FeaturePoint, FeaturePointOrb, OrbFpRsIO}
 import operator.NMSConfig
 import spinal.core._
 import spinal.lib._
@@ -18,12 +18,12 @@ object FAST_TYPE {
   val block = "distributed"
 }
 
-case class ORB_ComputeConfig(fastType:String, MEM_DEPTH : Int = 1024, SIZE_WIDTH : Int = 11){
+case class ORB_ComputeConfig(fastType:String = FAST_TYPE.small, MEM_DEPTH : Int = 1024, SIZE_WIDTH : Int = 11, TopSort:Int = -1){
   val DATA_NUM : Int = 8
   val DATA_WIDTH : Int = 8
   val DATA_STREAM_WIDTH = DATA_NUM * DATA_WIDTH
 
-  val resizeConfig = ResizeConfig1(MEM_DEPTH)
+  val resizeConfig = ResizeConfig1(MEM_DEPTH = MEM_DEPTH)
   val fastConfig = FastConfig(MEM_DEPTH = MEM_DEPTH)
   val rsBriefConfig = RSBriefConfig(MEM_DEPTH = MEM_DEPTH)
   val gaussianConfig = GaussianConfig(MEM_DEPTH = MEM_DEPTH)
@@ -34,7 +34,7 @@ class ORB_Compute(config : ORB_ComputeConfig) extends Module{
     //数据通道
     val sData = slave Stream Bits(config.DATA_STREAM_WIDTH bits)//图片输入
     val mDataImage = master Stream Bits(config.DATA_STREAM_WIDTH bits)//缩放后的图片输出
-    val mDataRs = master Stream Bits(64 bits)//结果
+    val mdata = master Stream new OrbFpRsIO(config.SIZE_WIDTH, config.DATA_WIDTH)
     //输入信号和输出信号，确保size*size个数据同时输出
     val start = in Bool()//开始信号
     //开始信号
@@ -64,6 +64,7 @@ class ORB_Compute(config : ORB_ComputeConfig) extends Module{
   val gaussian = new Gaussian(config.gaussianConfig)
   val rsBrief = new RSBriefOrb(config.rsBriefConfig)
   val fpDrop = new FpDrop(config.SIZE_WIDTH, config.DATA_WIDTH, 16, 16)
+  val dataSum = new DataSum(config.SIZE_WIDTH, config.DATA_WIDTH, config.TopSort)
   //数据流
   val fifoR = StreamFifo(io.sData.payload, 16)
   val fifoF = StreamFifo(io.sData.payload, 16)
@@ -83,8 +84,12 @@ class ORB_Compute(config : ORB_ComputeConfig) extends Module{
   fast.io.mData <> fpDrop.io.sData
   fpDrop.io.mData <> rsBrief.io.sDataFeaturePoint
 
-  rsBrief.io.mDataRsBrief <> io.mDataRs
   resize.io.mData <> io.mDataImage
+
+  dataSum.io.sData <> fpDrop.io.mData.toFlowFire
+  dataSum.io.sDataRsBrief <> rsBrief.io.mDataRsBrief
+
+  dataSum.io.mdata <> io.mdata
   //控制流
   resize.io.start := io.start
   fast.io.start := io.start

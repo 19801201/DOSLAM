@@ -13,7 +13,7 @@ import spinal.lib.experimental.chisel.Module
 import utils.{ImageCount, ImageSize}
 import spinal.lib.experimental.chisel.Module
 
-class dataSum (SIZE_WIDTH:Int, DATA_WIDTH:Int, TopSort:Int = -1) extends Module{
+class DataSum (SIZE_WIDTH:Int, DATA_WIDTH:Int, TopSort:Int = -1) extends Module{
   val io = new Bundle{
     val sData = slave Flow new FeaturePointOrb(SIZE_WIDTH, DATA_WIDTH)
     val sDataRsBrief = slave Stream Bits(64 bits)
@@ -55,6 +55,6 @@ class dataSum (SIZE_WIDTH:Int, DATA_WIDTH:Int, TopSort:Int = -1) extends Module{
   }
 }
 
-object dataSum extends App {
-  SpinalVerilog(new dataSum(11, 8)).printPruned
+object DataSum extends App {
+  SpinalVerilog(new DataSum(11, 8)).printPruned
 }
