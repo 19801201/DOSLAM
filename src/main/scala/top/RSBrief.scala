@@ -1,5 +1,4 @@
 package top
-import dataStructure.{FeaturePoint, FeaturePointOrb}
 import operator.NMSConfig
 import spinal.core._
 import spinal.lib._
@@ -8,6 +7,7 @@ import wa.WaCounter
 import operator._
 import spinal.core.Component.push
 import data._
+import dataStructure.{FeaturePoint, FeaturePointOrb}
 import spinal.lib.experimental.chisel.Module
 import utils.{ImageCount, ImageSize}
 case class RSBriefConfig(DATA_NUM : Int = 8,

@@ -1,5 +1,4 @@
 package top
-import dataStructure.{FeaturePoint, FeaturePointOrb, OrbFpRsIO}
 import operator.NMSConfig
 import spinal.core._
 import spinal.lib._
@@ -7,7 +6,8 @@ import spinal.lib.fsm._
 import wa.WaCounter
 import operator._
 import spinal.core.Component.push
-import data.{WindowsConfig, _}
+import data._
+import dataStructure.{FeaturePoint, FeaturePointOrb, OrbFpRsIO}
 import spinal.lib.experimental.chisel.Module
 import utils.{ImageCount, ImageSize}
 import spinal.lib.experimental.chisel.Module
@@ -39,6 +39,7 @@ class ORB_Compute(config : ORB_ComputeConfig) extends Module{
     val start = in Bool()//开始信号
     //开始信号
     //输入尺寸
+    //全部的尺寸
     val sizeIn = slave(new ImageSize(config.SIZE_WIDTH))//输入信号
     val threshold = in UInt (config.DATA_WIDTH bits)//阈值
     val maskF = in Bits(16 bits)//标志
@@ -54,6 +55,8 @@ class ORB_Compute(config : ORB_ComputeConfig) extends Module{
 
     val inValid = in Bits (3 bits)
   }
+
+  val sizeInCompute = new ImageSize(config.SIZE_WIDTH, ((io.sizeIn.colNum + 8)>>3).resize(config.SIZE_WIDTH) - 1, io.sizeIn.rowNum)
 
   val resize = new Resize(config.resizeConfig)
   val fast:FastIO = config.fastType match {
@@ -100,16 +103,16 @@ class ORB_Compute(config : ORB_ComputeConfig) extends Module{
   gaussian.io.mask := io.maskG
   fast.io.mask := io.maskF
 
-  resize.io.rowNumIn := io.sizeIn.rowNum
-  resize.io.colNumIn := io.sizeIn.colNum.resized
+  resize.io.rowNumIn := sizeInCompute.rowNum
+  resize.io.colNumIn := sizeInCompute.colNum.resized
   resize.io.colNumFlilterIn := io.colNumFlilterIn
   resize.io.colNumSrcIn := io.colNumSrcIn
   resize.io.rowNumSrcIn := io.rowNumSrcIn
 
-  fast.io.sizeIn := io.sizeIn
-  gaussian.io.colNumIn := io.sizeIn.colNum
-  gaussian.io.rowNumIn := io.sizeIn.rowNum
-  rsBrief.io.sizeIn := io.sizeIn
+  fast.io.sizeIn := sizeInCompute
+  gaussian.io.colNumIn := sizeInCompute.colNum
+  gaussian.io.rowNumIn := sizeInCompute.rowNum
+  rsBrief.io.sizeIn := sizeInCompute
   fpDrop.io.sizeIn := io.sizeIn
 
   fast.io.threshold := io.threshold

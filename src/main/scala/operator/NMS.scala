@@ -1,12 +1,12 @@
 package operator
 
 import data._
+import dataStructure.{FeaturePoint, FeaturePointOrb}
 import spinal.core._
 import spinal.lib._
 import spinal.lib.fsm._
 import wa.WaCounter
 import spinal.lib.experimental.chisel.Module
-import dataStructure._
 import utils.{ImageCount, ImageSize}
 import wa.xip.xpm._
 //实现流水线模块的NMS，进行8次大小判断，得到非极大值抑制之后的结果

@@ -1,8 +1,6 @@
 package data
 
-import dataStructure.FeaturePointOrb
 import spinal.lib.experimental.chisel.Bundle
-import dataStructure.{FeaturePoint, FeaturePointOrb}
 import operator.NMSConfig
 import spinal.core._
 import spinal.lib._
@@ -11,6 +9,7 @@ import wa.WaCounter
 import operator._
 import spinal.core.Component.push
 import data._
+import dataStructure.{FeaturePoint, FeaturePointOrb}
 import spinal.lib.experimental.chisel.Module
 import utils.{ImageCount, ImageSize}
 
@@ -23,9 +22,9 @@ class FpDrop(SIZE_WIDTH : Int, DATA_WIDTH:Int, DEPTH:Int, BOUNDARY_SIZE:Int = 16
   }
   val sizeValid = io.sizeIn.sub(BOUNDARY_SIZE, BOUNDARY_SIZE).setAsReg()
   val leftInValid = io.sData.payload.size.colNum < BOUNDARY_SIZE
-  val rightInValid = sizeValid.colNum > io.sData.payload.size.colNum
+  val rightInValid = io.sData.payload.size.colNum > sizeValid.colNum
   val topInValid = io.sData.payload.size.rowNum < BOUNDARY_SIZE
-  val downInValid = io.sData.payload.size.rowNum > io.sData.payload.size.rowNum
+  val downInValid = io.sData.payload.size.rowNum > sizeValid.rowNum
 
   val fifo = StreamFifo(io.sData.payload, DEPTH)
   io.sData.throwWhen(downInValid || topInValid || leftInValid || rightInValid) <> fifo.io.push

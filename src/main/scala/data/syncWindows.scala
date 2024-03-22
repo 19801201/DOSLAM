@@ -24,7 +24,7 @@ class syncWindows(config : WindowsConfig) extends Component{
 
     val fsm = fsmIV(io.start, io.sData, io.sizeIn)
 
-    io.sizeOut := io.sizeIn.sub((config.WINDOWS_SIZE_H - 1), (config.WINDOWS_SIZE_W - 1))
+    io.sizeOut := io.sizeIn.sub((config.WINDOWS_SIZE_W - 1), (config.WINDOWS_SIZE_H - 1))
 
     val rowDataValid0 = fsm.validCnt.rowCnt.count >= (config.WINDOWS_SIZE_H - 1)
     val colDataValid0 = fsm.validCnt.colCnt.count >= (config.WINDOWS_SIZE_W - 1)

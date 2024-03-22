@@ -1,5 +1,4 @@
 package top
-import dataStructure.{FeaturePoint, FeaturePointOrb}
 import operator.NMSConfig
 import spinal.core._
 import spinal.lib._
@@ -7,7 +6,8 @@ import spinal.lib.fsm._
 import wa.WaCounter
 import operator._
 import spinal.core.Component.push
-import data.{WindowsConfig, _}
+import data._
+import dataStructure.{FeaturePoint, FeaturePointOrb}
 import spinal.lib.experimental.chisel.Module
 import utils.{ImageCount, ImageSize}
 
