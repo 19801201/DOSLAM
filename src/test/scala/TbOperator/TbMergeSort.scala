@@ -1,9 +1,12 @@
 package TbOperator
 
+import TbOperator.TbSort1.spinalConfig
+import TbTop.TbORB_Compute.spinalConfig
 import spinal.core._
 import spinal.core.sim._
 import operator.{MergeA, MergeSort, MergeSortConfig}
 
+import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 case class TbSort(config : MergeSortConfig) extends MergeSort(config){
   val random = new Random()
@@ -92,9 +95,9 @@ case class TbSort(config : MergeSortConfig) extends MergeSort(config){
 case class TbTopSort() extends MergeA{
   val random = new Random()
   val data = (1 to 10).map(_ =>{
-    (1 to 64).map(_ => random.nextInt()).sorted.reverse
+    (1 to 64).map(_ => random.nextInt()).sorted
   })
-  val sortData = data.flatten.sorted.reverse.take(64)
+  val sortData = data.flatten.sorted.take(64)
   //randData.sorted.reverse
   println("randdata")
   for((data1, i) <- data.zipWithIndex){
@@ -140,9 +143,9 @@ case class TbTopSort() extends MergeA{
         io.input.payload #= line
         io.input.valid #= true
         clockDomain.waitSamplingWhere(io.input.valid.toBoolean && io.input.ready.toBoolean)
-        //                io.input.valid #= false
-        //                val randomInt = random.nextInt(25)
-        //                if(randomInt < 4)  clockDomain.waitSampling(randomInt)
+        io.input.valid #= false
+        val randomInt = random.nextInt(25)
+        if(randomInt < 4)  clockDomain.waitSampling(randomInt)
       }
       io.input.valid #= false
     }
@@ -192,7 +195,8 @@ object TbSort extends App {
     defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH, resetKind = SYNC)
   )
   //SimConfig.withXSim.withWave.withConfig(spinalConfig).compile(new TbMaxPooling()).doSimUntilVoid { dut =>
-  SimConfig.withWave.withConfig(spinalConfig).compile(new TbSort(MergeSortConfig(1024))).doSimUntilVoid { dut =>
+  SimConfig.withXilinxDevice("xq7vx690trf1157-2I").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.withConfig(spinalConfig).compile(new TbSort(MergeSortConfig(1024))).doSimUntilVoid { dut =>
+    println(log2Up(640))
     dut.init
     //dut.io.ic.start #= true
     dut.clockDomain.waitSampling(100)
@@ -209,7 +213,7 @@ object TbSort1 extends App {
     defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH, resetKind = SYNC)
   )
   //SimConfig.withXSim.withWave.withConfig(spinalConfig).compile(new TbMaxPooling()).doSimUntilVoid { dut =>
-  SimConfig.withWave.withConfig(spinalConfig).compile(new TbTopSort()).doSimUntilVoid { dut =>
+  SimConfig.withXilinxDevice("xq7vx690trf1157-2I").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.withConfig(spinalConfig).compile(new TbTopSort()).doSimUntilVoid { dut =>
     dut.init
     //dut.io.ic.start #= true
     dut.clockDomain.waitSampling(100)

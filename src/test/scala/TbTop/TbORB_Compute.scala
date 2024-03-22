@@ -266,7 +266,7 @@ object TbORB_Compute extends App {
     defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH, resetKind = SYNC)
   )
   //SimConfig.withXSim.withWave.withConfig(spinalConfig).compile(new TbMaxPooling()).doSimUntilVoid { dut =>
-  SimConfig.withXilinxDevice("xq7vx690trf1157-2I").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.withConfig(spinalConfig).compile(new TbORB_Compute(ORB_ComputeConfig())).doSimUntilVoid { dut =>
+  SimConfig.withXilinxDevice("xq7vx690trf1157-2I").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.withConfig(spinalConfig).compile(new TbORB_Compute(ORB_ComputeConfig(fastType = FAST_TYPE.full))).doSimUntilVoid { dut =>
     dut.init(480, 640, 20)
     dut.io.start #= true
     dut.clockDomain.waitSampling(10)

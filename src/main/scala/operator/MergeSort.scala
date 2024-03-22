@@ -87,6 +87,7 @@ class Merge[T <: Data](dataType: HardType[T], len: Int, compare: (T, T) => Bool)
   fifoB.io.pop.ready := (io.output.ready || !io.output.valid) && ((isCompareState && !selA && fifoB.io.pop.valid && fifoA.io.pop.valid) || isBoutput)
 }
 
+//得到最大得前k个数值，最后一组数据输出结果，最后一组数据进行填充一些无效数据就可以，
 class TopMerge[T <: Data](dataType: HardType[T], len: Int, compare: (T, T) => Bool) extends Module{
   val io = new Bundle {
     val input = slave(Stream(dataType))
@@ -108,7 +109,7 @@ class TopMerge[T <: Data](dataType: HardType[T], len: Int, compare: (T, T) => Bo
   val fsm = new StateMachine {
     setEncoding(binaryOneHot)
     val INIT = new State with EntryPoint
-    val INPUTC, OUTPUT, WAIT = new State
+    val INPUTC, OUTPUT = new State
     val inputCnt = WaCounter(io.input.fire, log2Up(len), len - 1)
     val outputCnt = WaCounter(io.output.fire, log2Up(len), len - 1)
     val bclear = Reg(Bool(), False) setWhen outputCnt.valid && io.output.fire clearWhen isActive(INIT)
@@ -126,8 +127,8 @@ class TopMerge[T <: Data](dataType: HardType[T], len: Int, compare: (T, T) => Bo
         }
       }
     INPUTC
-      .whenIsActive {
-        when(inputCnt.valid && io.input.fire) {
+      .whenIsActive {//最后一个数据的来临或者在等待接收第一个数据之前
+        when((inputCnt.valid && io.input.fire) || (!inputCnt.count.orR && !io.input.fire)) {
           when(io.enLastVec) {
             goto(OUTPUT)
           }
@@ -166,7 +167,7 @@ class TopMerge[T <: Data](dataType: HardType[T], len: Int, compare: (T, T) => Bo
   val selCompareA = RegInit(True) toggleWhen((selCompareCount.valid && (fifoA.io.pop.fire || fifoC.io.pop.fire)) || (curEndCount.valid && anyFifoPopValid || fsm.clear))
   val selCompareData = selCompareA.mux(fifoA.io.pop.payload, fifoC.io.pop.payload)
 
-  val selB = compare(selCompareData, fifoB.io.pop.payload)
+  val selB = !compare(selCompareData, fifoB.io.pop.payload)
 
   val judgeEnd = RegInit(False) setWhen !curEndCount.count.orR clearWhen(fsm.clear)
   val judgeLastEnd = judgeEnd || !curEndCount.count.orR
@@ -220,6 +221,25 @@ class MergeSort(config : MergeSortConfig) extends Module with VecIoPara{
   for(i <- 0 until log2Up(config.maxNum)){
     val mergeSize = 1 << i
     val merge =  new Merge(io.idi.payload, mergeSize, (left: SInt, right: SInt) => left < right)
+    merge.io.input << data(i)
+    data(i + 1) << merge.io.output
+  }
+}
+
+class MergeSortT[T <: Data](dataType: HardType[T], len: Int, compare: (T, T) => Bool) extends Module{
+  val io = new Bundle {//
+    //val ic = slave(VecControlIO())
+    val idi = slave Stream dataType
+    val ido = master Stream dataType
+  }
+
+  val data = Vec(weakCloneOf(io.idi),log2Up(len) + 1)
+  data.head << io.idi
+  io.ido << data.last
+
+  for(i <- 0 until log2Up(len)){
+    val mergeSize = 1 << i
+    val merge =  new Merge(io.idi.payload, mergeSize, compare)
     merge.io.input << data(i)
     data(i + 1) << merge.io.output
   }
