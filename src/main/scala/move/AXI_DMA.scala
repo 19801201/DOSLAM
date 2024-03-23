@@ -8,53 +8,6 @@ import spinal.lib.bus.amba4.axis.Axi4Stream.{Axi4Stream, Axi4StreamBundle}
 import spinal.lib.bus.amba4.axis.{Axi4Stream, Axi4StreamConfig}
 import spinal.lib.fsm._
 
-case class DMA_CONFIG(addrWidth:Int = 32, dataWidth:Int = 64, brustLength:Int = 16, fifoDepthWidth:Int = 5, idWidth:Int = 4){
-  val axiConfig = Axi4Config(addrWidth,dataWidth, useRegion = false, useQos = false, idWidth = 4)
-  val wordSize = 8
-  val strbWidth = (dataWidth/wordSize)
-  val axisConfig = Axi4StreamConfig(strbWidth, useKeep = true, useLast = true)
-
-  val maxSingleBrustSize = log2Up(strbWidth)
-  val maxBrustSize = brustLength << maxSingleBrustSize
-  val min4kBrustSize = maxBrustSize.min(4096)
-  val addrMask = ((BigInt(1) << addrWidth) - 1) << log2Up(strbWidth) mod (BigInt(1) << addrWidth)
-  val fifoDepth = 1 << fifoDepthWidth
-
-  println("addrWidth:" + addrWidth)
-  println("dataWidth:" + dataWidth)
-  println("brustLength:" + brustLength)
-  println("fifoDepthWidth:" + fifoDepthWidth)
-  println("strbWidth:" + strbWidth)
-  println("maxSingleBrustSize:" + maxSingleBrustSize)
-  println("maxBrustSize:" + maxBrustSize)
-}
-
-case class axis_desc(config: DMA_CONFIG) extends Bundle{
-  val addr = UInt(config.addrWidth bits)
-  val len = UInt(32 bits)
-
-  def getNextIncDesc(trSizeCount:UInt): axis_desc ={
-    val nextDesc = axis_desc(config)
-    nextDesc.addr := this.addr + trSizeCount
-    nextDesc.len := this.len - trSizeCount
-    nextDesc
-  }
-  //待传输的数据量小于一次传输所需的突发容量
-  def stBurstSize(): Bool ={
-    len < config.min4kBrustSize
-  }
-  //判断搬移trSizeCount字节个数据是否，是否跨越了4k边界，如果跨越了4K边界
-  def isCrossesBoundary(trSizeCount: UInt): Bool = {
-    ((addr(11 downto 0)) + trSizeCount) >> 12 =/= U(0)
-  }
-
-  def get4kBoundarySize: UInt = U"13'h1000" - (addr(11 downto 0))
-}
-
-case class dmaCmdIO(config : DMA_CONFIG) extends Bundle{
-  val addr = UInt(config.addrWidth bits)
-  val length = UInt(config.dataWidth bits)
-}
 
 /**
  * @state IDLE 空闲状态可以接收读写描述符，接收描述符后进入开始状态，不接收数据，进入其他状态后开始接收数据
