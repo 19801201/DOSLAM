@@ -18,7 +18,7 @@ object FAST_TYPE {
   val block = "distributed"
 }
 
-case class ORB_ComputeConfig(fastType:String = FAST_TYPE.small, MEM_DEPTH : Int = 1024, SIZE_WIDTH : Int = 11, TopSort:Int = -1){
+case class ORB_ComputeConfig(fastType:String = FAST_TYPE.small, MEM_DEPTH : Int = 128, SIZE_WIDTH : Int = 11, TopSort:Int = -1){
   val DATA_NUM : Int = 8
   val DATA_WIDTH : Int = 8
   val DATA_STREAM_WIDTH = DATA_NUM * DATA_WIDTH
@@ -35,6 +35,7 @@ class ORB_Compute(config : ORB_ComputeConfig) extends Module{
     val sData = slave Stream Bits(config.DATA_STREAM_WIDTH bits)//图片输入
     val mDataImage = master Stream Bits(config.DATA_STREAM_WIDTH bits)//缩放后的图片输出
     val mData = master Stream new OrbFpRsIO(config.SIZE_WIDTH, config.DATA_WIDTH)
+    val mDataLast = out(Bool())
     //输入信号和输出信号，确保size*size个数据同时输出
     val start = in Bool()//开始信号
     //开始信号
@@ -54,6 +55,11 @@ class ORB_Compute(config : ORB_ComputeConfig) extends Module{
     val colNumSrcIn = in UInt (config.SIZE_WIDTH bits) //输出数据的大小由上位机给出即可，完全不考虑边界问题。即输入即输出数据量
 
     val inValid = in Bits (3 bits)
+
+    val inputLength = out(UInt(16 bits))
+    val outputLength = out(UInt(16 bits))
+
+    val topNum = in(UInt(16 bits))
   }
 
   val sizeInCompute = new ImageSize(config.SIZE_WIDTH, ((io.sizeIn.colNum + 8)>>3).resize(config.SIZE_WIDTH) - 1, io.sizeIn.rowNum)
@@ -91,8 +97,14 @@ class ORB_Compute(config : ORB_ComputeConfig) extends Module{
 
   dataSum.io.sData <> fpDrop.io.mData.toFlowFire
   dataSum.io.sDataRsBrief <> rsBrief.io.mDataRsBrief
+  dataSum.io.done := fast.io.done
 
   dataSum.io.mdata <> io.mData
+  dataSum.io.flush := io.start
+  io.inputLength := dataSum.io.inputLength
+  io.outputLength := dataSum.io.outputLength
+  io.mDataLast := dataSum.io.mdataLast
+  dataSum.io.topNum := io.topNum
   //控制流
   resize.io.start := io.start
   fast.io.start := io.start
@@ -120,5 +132,5 @@ class ORB_Compute(config : ORB_ComputeConfig) extends Module{
 }
 
 object ORB_Compute extends App {
-  SpinalVerilog(new ORB_Compute(ORB_ComputeConfig(FAST_TYPE.small, 128))).printPruned
+  SpinalVerilog(new ORB_Compute(ORB_ComputeConfig(FAST_TYPE.full, 128))).printPruned
 }

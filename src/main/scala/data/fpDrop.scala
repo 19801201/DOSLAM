@@ -19,6 +19,7 @@ class FpDrop(SIZE_WIDTH : Int, DATA_WIDTH:Int, DEPTH:Int, BOUNDARY_SIZE:Int = 16
     val sData = slave Stream new FeaturePointOrb(SIZE_WIDTH, DATA_WIDTH)
     val mData = master Stream new FeaturePointOrb(SIZE_WIDTH, DATA_WIDTH)
     val sizeIn = slave(new ImageSize(SIZE_WIDTH))
+    //整个图的大小
   }
   val sizeValid = io.sizeIn.sub(BOUNDARY_SIZE, BOUNDARY_SIZE).setAsReg()
   val leftInValid = io.sData.payload.size.colNum < BOUNDARY_SIZE
@@ -27,6 +28,7 @@ class FpDrop(SIZE_WIDTH : Int, DATA_WIDTH:Int, DEPTH:Int, BOUNDARY_SIZE:Int = 16
   val downInValid = io.sData.payload.size.rowNum > sizeValid.rowNum
 
   val fifo = StreamFifo(io.sData.payload, DEPTH)
+  //用这个产生一个last信号，选择直接传出和等待传出
   io.sData.throwWhen(downInValid || topInValid || leftInValid || rightInValid) <> fifo.io.push
   fifo.io.pop <> io.mData
 }

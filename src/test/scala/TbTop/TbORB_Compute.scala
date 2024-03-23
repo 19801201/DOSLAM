@@ -36,7 +36,7 @@ case class TbORB_Compute(config : ORB_ComputeConfig) extends ORB_Compute(config)
     case 1 => 0xc001 //1100 0000 0000 0001
   }}
 
-  def init(row:Int,col:Int,threshold:Int) = {
+  def init(row:Int,col:Int,threshold:Int,topNum:Int) = {
     clockDomain.forkStimulus(5000)
     io.sData.valid #= false
     io.sData.payload #= 0
@@ -79,6 +79,8 @@ case class TbORB_Compute(config : ORB_ComputeConfig) extends ORB_Compute(config)
     io.threshold #= threshold
     io.maskF #= matchMask(col % 8)
     //--------------------fast----------------------------//
+    io.topNum #= topNum
+
     io.mData.ready #= false
     io.mDataImage.ready #= false
     clockDomain.waitSampling(10)
@@ -109,8 +111,8 @@ case class TbORB_Compute(config : ORB_ComputeConfig) extends ORB_Compute(config)
       var i = 0
       while (i < dstFile.length) {
         clockDomain.waitSampling()
-        //            io.mData.ready #= true
-        io.mDataImage.ready.randomize()
+          io.mDataImage.ready #= true
+//        io.mDataImage.ready.randomize()
         if (io.mDataImage.valid.toBoolean && io.mDataImage.ready.toBoolean) {
           io.start #= false
           val temp = dstFile(iter)
@@ -142,16 +144,16 @@ case class TbORB_Compute(config : ORB_ComputeConfig) extends ORB_Compute(config)
     }
   }
 
-  def outFp(dst_scala: String, dst: String): Unit = {
+  def outFp(dst_scala: String, dst: String, topNum:Int): Unit = {
     fork {
       clockDomain.waitSampling()
       val testFile = new PrintWriter(new File(dst_scala))
       val dstFile = Source.fromFile(dst).getLines().toArray
-      val total = dstFile.length
+      val total = if(config.TopSort <= 0) dstFile.length else topNum
       var error = 0
       var iter = 0
       var i = 0
-      while (i < dstFile.length) {
+      while (i < total) {
         clockDomain.waitSampling()
         //            io.mData.ready #= true
         io.mData.ready.randomize()
@@ -195,16 +197,16 @@ case class TbORB_Compute(config : ORB_ComputeConfig) extends ORB_Compute(config)
     }
   }
 
-  def outRs(dst_scala: String, dst: String): Unit = {
+  def outRs(dst_scala: String, dst: String, topNum:Int): Unit = {
     fork {
       clockDomain.waitSampling()
       val testFile = new PrintWriter(new File(dst_scala))
       val dstFile = Source.fromFile(dst).getLines().toArray
-      val total = dstFile.length
+      val total = if(config.TopSort <= 0) dstFile.length else topNum
       var error = 0
       var iter = 0
       var i = 0
-      while (i < dstFile.length) {
+      while (i < total) {
         clockDomain.waitSampling()
         if (io.mData.valid.toBoolean && io.mData.ready.toBoolean) {
           io.start #= false
@@ -267,15 +269,16 @@ object TbORB_Compute extends App {
   )
   //SimConfig.withXSim.withWave.withConfig(spinalConfig).compile(new TbMaxPooling()).doSimUntilVoid { dut =>
   SimConfig.withXilinxDevice("xq7vx690trf1157-2I").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.withConfig(spinalConfig).compile(new TbORB_Compute(ORB_ComputeConfig(fastType = FAST_TYPE.full))).doSimUntilVoid { dut =>
-    dut.init(480, 640, 20)
+    val topNum = 30
+    dut.init(480, 640, 20, topNum)
     dut.io.start #= true
     dut.clockDomain.waitSampling(10)
     val path = "C:\\myData\\data\\xsim_data\\slam\\Top_orb640_480_20"
 
     dut.in(path + "\\ReferenceDataInImage.coe")
     dut.outResize(path + "\\resizeSimDataout.coe",path + "\\ResizeReferenceDataOut.txt")
-    dut.outFp(path + "\\FpsimDataout.coe",path + "\\ReferenceDataInKeypoints.coe")
-    dut.outRs(path + "\\RssimDataout.coe", path + "\\ReferenceDataOutputDescriptors.coe")
+    dut.outFp(path + "\\FpsimDataout.coe",path + "\\ReferenceDataInKeypoints.coe", topNum)
+    dut.outRs(path + "\\RssimDataout.coe", path + "\\ReferenceDataOutputDescriptors.coe", topNum)
     dut.waitSuccess()
   }
 }

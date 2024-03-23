@@ -230,7 +230,7 @@ class RSBriefOrb(config:RSBriefConfig) extends Module {
     }
 
     //1、产生一个窗口数据,不进行padding
-    val windows31 = new syncWindowsPadding(config.dataGenerateRow31Config)
+    val windows31 = new syncWindowsPadding2(config.dataGenerateRow31Config)
     windows31.io.start := io.start
     windows31.io.sizeIn := io.sizeIn
     //2、获得特征点数据，根据特征点数据的值,产生valid有效信号

@@ -331,6 +331,7 @@ class NMS1(config:NMSConfig) extends Module {
         val start = in Bool()
         //开始信号
         val sizeIn = slave(new ImageSize(config.SIZE_WIDTH))
+        val done = out Bool()
     }
     //1、首先生成3行3列的数据。然后比较结果是否满足
     //得到根据生成的满足结果，产生mask码，选择这一位结果
@@ -395,6 +396,9 @@ class NMS1(config:NMSConfig) extends Module {
     fifo.io.pop <> io.mData
     val fifoReady = RegNext(fifo.io.availability > 16)
     windows.io.mData.ready := fifoReady && (curMaxPointValid.subdivideIn(config.DATA_NUM slices).map(p => p.asUInt).reduceBalancedTree(_ +^ _) <= U"3'b1")
+
+    val done = RegInit(False) setWhen(cnt.fireCnt) clearWhen (io.start)
+    io.done := (Delay(done, 2) && !fifo.io.pop.valid).rise(False)
 }
 
 object NMS extends App {

@@ -45,6 +45,7 @@ class FastIO(config:FastConfig) extends Module {
         val sizeIn = slave(new ImageSize(config.SIZE_WIDTH))
         val threshold = in UInt (config.DATA_WIDTH bits)
         val mask = in Bits(16 bits)
+        val done = out Bool()
     }
 }
 
@@ -138,6 +139,7 @@ class FastOrbFull(config:FastConfig) extends FastIO(config){
     nms.io.start <> io.start
     nms.io.sizeIn := windows.io.sizeIn
     nms.io.mData <> io.mData
+    io.done <> nms.io.done
 //
 //    io.mData <> fifo.io.pop
 }
@@ -236,6 +238,7 @@ class FastOrbSmall(config:FastConfig) extends FastIO(config) {
     nms.io.start <> io.start
     nms.io.sizeIn := windows.io.sizeOut
     nms.io.mData <> io.mData
+    io.done <> nms.io.done
 //    io.mData <> fifo.io.pop
 }
 
