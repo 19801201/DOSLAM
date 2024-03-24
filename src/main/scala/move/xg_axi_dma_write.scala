@@ -112,7 +112,7 @@ class axiDmaWriteFsm extends StateMachine {//分为四个状态，空闲，有�
   val END = new State //结束状态
 //  val DROP = new State //丢弃数据状态
 
-  val startPara, startMove, startDrop, startEnd, dropEnd = Bool()
+  val startPara, startMove, startDrop, startEnd, dropEnd,startPara2 = Bool()
   IDLE
     .whenIsActive {
       when(startPara) {
@@ -136,7 +136,7 @@ class axiDmaWriteFsm extends StateMachine {//分为四个状态，空闲，有�
     }
   END
     .whenIsActive {
-      when(startPara){
+      when(startPara2){
         goto(PARA)
       } otherwise{
         goto(IDLE)
@@ -241,7 +241,8 @@ class xg_axi_dma_write(config : DMA_CONFIG) extends Component {
   //或者当前是last使能，
   fsm.startMove := (fifo.io.occupancy >= (trCycleNext + 1)) //当然数据量足够，开始传输
   fsm.startEnd  := (trCycleReg === U(0, 8 bits)) && io.m_axi_s2mm.w.fire && !io.m_axi_s2mm.aw.valid //全部被接收已经全部传输完成。
-  fsm.startPara := RegNext(io.s_axis_write_des.fire) || (fifoGetLast && fifo.io.occupancy.orR) || lenDescReg.len.orR
+  fsm.startPara := RegNext(io.s_axis_write_des.fire)
+  fsm.startPara2 := (!fifoGetLast || fifo.io.occupancy.orR) && lenDescReg.len.orR
 //  fsm.startDrop := (lenDescReg.len === U(0))//没有数据需要搬移，那么清空
   fsm.dropEnd   := (io.s_axis_s2mm.valid && io.s_axis_s2mm.last)//清空过程中接收到last信号，那么结束
   //描述符的接收
