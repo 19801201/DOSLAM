@@ -62,6 +62,7 @@ case class DMA_CONFIG(addrWidth:Int = 32, dataWidth:Int = 64, brustLength:Int = 
   val maxSingleBrustSize = log2Up(strbWidth)
   val maxBrustSize = brustLength << maxSingleBrustSize
   val min4kBrustSize = maxBrustSize.min(4096)
+  println("min4kBrustSize:"+min4kBrustSize)
   val addrMask = ((BigInt(1) << addrWidth) - 1) << log2Up(strbWidth) mod (BigInt(1) << addrWidth)
   val fifoDepth = 1 << fifoDepthWidth
 
@@ -97,7 +98,7 @@ case class axis_desc(config: DMA_CONFIG) extends Bundle{
   }
   //判断搬移trSizeCount字节个数据是否，是否跨越了4k边界，如果跨越了4K边界
   def isCrossesBoundary(trSizeCount: UInt): Bool = {
-    ((addr(11 downto 0)) + trSizeCount) >> 12 =/= U(0)
+    ((addr(11 downto 0)) +^ trSizeCount) >> 12 =/= U(0)
   }
 
   def get4kBoundarySize: UInt = U"13'h1000" - (addr(11 downto 0))
