@@ -199,14 +199,14 @@ class xg_axi_dma_write(config : DMA_CONFIG) extends Component {
   val trSizeCountNext, trSizeCountReg, trSizeCount = UInt(14 bits)//一次突发传输所需传输的字节个数
   val lenDescReg = axis_desc(config)
   val trCycleNext, trCycleReg = UInt(8 bits)
-  val fifoGetLast = Reg(Bool()) setWhen(io.s_axis_s2mm.fire && io.s_axis_s2mm.last) clearWhen(fsm.isActive(fsm.IDLE))
+  val fifoGetLast = Reg(Bool()) init False setWhen(io.s_axis_s2mm.fire && io.s_axis_s2mm.last) clearWhen(fsm.isActive(fsm.IDLE))
   //考虑以下情况，1、当前fifo内部容量大于当前传输的数据 2、已经接收到last信号
   //启动突发传输的最小的数据量（单位：字节）
   //选择当前正确传输的数据长度
   //计算描述符的起始地址和数据长度
   lenDescReg.setAsReg()
   val descAddSize = UInt(14 bits)
-  lenDescReg.getNextIncDesc(descAddSize)
+  lenDescReg := lenDescReg.getNextIncDesc(descAddSize)
   when(io.s_axis_write_des.fire){
     lenDescReg := io.s_axis_write_des.payload
   }
@@ -239,21 +239,21 @@ class xg_axi_dma_write(config : DMA_CONFIG) extends Component {
   //当前fifo容量大于所需传输的周期数，代表数据量充足，可用开启一次突发传输
   //或者当前是last使能，
   fsm.startMove := (fifo.io.occupancy >= (trCycleNext + 1)) //当然数据量足够，开始传输
-  fsm.startEnd  := (trCycleReg === U(0, 8 bits)) && io.m_axi_s2mm.w.fire
-  fsm.startPara := (RegNext(io.s_axis_write_des.fire) || (fifoGetLast && fifo.io.occupancy === U(0)))
-  fsm.startDrop := (lenDescReg.len === U(0))//没有数据需要搬移，那么清空
+  fsm.startEnd  := (trCycleReg === U(0, 8 bits)) && io.m_axi_s2mm.w.fire && !io.m_axi_s2mm.aw.valid //全部被接收已经全部传输完成。
+  fsm.startPara := RegNext(io.s_axis_write_des.fire) || (fifoGetLast && fifo.io.occupancy.orR) || lenDescReg.len.orR
+//  fsm.startDrop := (lenDescReg.len === U(0))//没有数据需要搬移，那么清空
   fsm.dropEnd   := (io.s_axis_s2mm.valid && io.s_axis_s2mm.last)//清空过程中接收到last信号，那么结束
   //描述符的接收
-  io.s_axis_write_des.ready.setAsReg() setWhen(fsm.isExiting(fsm.IDLE)) clearWhen(io.s_axis_write_des.fire)
+  io.s_axis_write_des.ready.setAsReg() init True setWhen(fsm.isEntering(fsm.IDLE)) clearWhen(io.s_axis_write_des.fire)
   //数据的接收
-  val s2mmLength = RegNextWhen((io.s_axis_write_des.len - 1) >> config.maxSingleBrustSize, io.s_axis_s2mm.fire, U(0))
+  val s2mmLength = RegNextWhen((io.s_axis_write_des.len - 1) >> config.maxSingleBrustSize, io.s_axis_write_des.fire, U(0))
   val s2mmCount = WaCounter(io.s_axis_s2mm.fire, 14, s2mmLength)
   //停止数据输入，的判断依据两条，1、接收到last信号，2、已经接收len个数据
-  val stopInput = RegInit(True) setWhen (fsm.isExiting(fsm.IDLE)) clearWhen (s2mmCount.validLast() || (io.s_axis_s2mm.fire && io.s_axis_s2mm.last))
-  io.s_axis_s2mm.continueWhen(!stopInput) <> fifo.io.push //如果已经接收了length个数据，或者last信号那么就不在接收
+  val continueInput = RegInit(True) setWhen (fsm.isExiting(fsm.IDLE)) clearWhen (s2mmCount.validLast() || (io.s_axis_s2mm.fire && io.s_axis_s2mm.last))
+  io.s_axis_s2mm.continueWhen(continueInput) <> fifo.io.push //如果已经接收了length个数据，或者last信号那么就不在接收
 
   //控制通道的数据发送
-  io.m_axi_s2mm.aw.valid.setAsReg() setWhen(fsm.isExiting(fsm.PARA)) clearWhen (io.m_axi_s2mm.aw.ready)
+  io.m_axi_s2mm.aw.valid.setAsReg() init False clearWhen (io.m_axi_s2mm.aw.ready) setWhen(fsm.isExiting(fsm.PARA))
   io.m_axi_s2mm.aw.payload.addr := RegNextWhen(lenDescReg.addr, fsm.isExiting(fsm.PARA), U(0))
   io.m_axi_s2mm.aw.payload.setBurstINCR()//突发类型递增
   io.m_axi_s2mm.aw.payload.setSize(config.maxSingleBrustSize)//突发字节数
@@ -261,20 +261,20 @@ class xg_axi_dma_write(config : DMA_CONFIG) extends Component {
   io.m_axi_s2mm.aw.payload.setLock(B"1'b0") //不锁定总线
   io.m_axi_s2mm.aw.payload.setProt(B"3'b010")
   io.m_axi_s2mm.aw.id := U(1, config.axiConfig.idWidth bits)
-  io.m_axi_s2mm.aw.payload.len := RegNextWhen(trCycleReg, fsm.isExiting(fsm.PARA), U(0))
+  io.m_axi_s2mm.aw.payload.len := RegNextWhen(trCycleNext, fsm.isExiting(fsm.PARA), U(0))
 
   //写通道的数据发送
-  io.m_axi_s2mm.w.valid.setAsReg() init False clearWhen(io.m_axi_s2mm.w.ready) setWhen (fifo.io.pop.valid && fsm.isActive(fsm.MOVE))
+  io.m_axi_s2mm.w.valid.setAsReg() init False clearWhen(io.m_axi_s2mm.w.ready) setWhen (fifo.io.pop.valid && fsm.isActive(fsm.MOVE) && trCycleReg.orR)
   io.m_axi_s2mm.w.payload.data := fifo.io.pop.payload.data
   io.m_axi_s2mm.w.payload.strb := fifo.io.pop.payload.keep
   io.m_axi_s2mm.w.payload.last := fifo.io.pop.valid && (trCycleReg === U(0))
 
   //写响应通道
-  io.m_axi_s2mm.b.ready.setAsReg() setWhen(fsm.isActive(fsm.END)) clearWhen(io.m_axi_s2mm.b.valid)
+  io.m_axi_s2mm.b.ready.setAsReg() init False clearWhen(io.m_axi_s2mm.b.valid) setWhen(fsm.isActive(fsm.END))
 
   fifo.io.pop.ready := io.m_axi_s2mm.w.fire
 }
 
 object xg_axi_dma_write extends App {
-  SpinalVerilog(new xg_axi_dma_write(DMA_CONFIG())).printPruned
+  SpinalVerilog(new xg_axi_dma_write(DMA_CONFIG(dataWidth = 512))).printPruned
 }

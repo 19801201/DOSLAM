@@ -34,7 +34,7 @@ class axiDmaReadFsm extends StateMachine {//分为四个状态，空闲，有效
     .whenIsActive {
       when(startEnd){
         goto(END)
-      } otherwise (startPara){
+      } elsewhen (startPara){
         goto(PARA)
       }
     }
@@ -64,7 +64,7 @@ class xg_axi_dma_read(config:DMA_CONFIG) extends Module{
   when(io.s_axis_read_des.fire){
     trDesc := io.s_axis_read_des.payload
   } elsewhen(fsm.isExiting(fsm.PARA)){
-    trDesc.getNextIncDesc(trLenSize)
+    trDesc := trDesc.getNextIncDesc(trLenSize)
   }
   //当前的剩余周期数目
   val trCycle = Reg(UInt(8 bits))
@@ -74,7 +74,7 @@ class xg_axi_dma_read(config:DMA_CONFIG) extends Module{
     trCycle := trCycle - 1
   }
   //判断能否进行传输
-  fsm.startPara := (RegNext(io.s_axis_read_des.fire) || (!trCycle.orR && io.s_axi_mm2s.r.fire))//1、接收到描述符 2、当前传输已经完成 正在传输最后一个周期并且接收到了fire
+  fsm.startPara := (RegNext(io.s_axis_read_des.fire) || (trDesc.len.orR && !trCycle.orR && io.s_axi_mm2s.r.fire))//1、接收到描述符 2、当前传输已经完成 正在传输最后一个周期并且接收到了fire
   fsm.startMove := (fifo.io.availability > trLenCycle)//fifo可以全部接收，那么就开启下一次传输
   fsm.startEnd := !trDesc.len.orR && !trCycle.orR && io.s_axi_mm2s.r.fire //已经传输完成全部的数据，并且最后一共数据已经被接收
   fsm.popEnd := !fifo.io.occupancy.orR
@@ -101,5 +101,5 @@ class xg_axi_dma_read(config:DMA_CONFIG) extends Module{
 }
 
 object xg_axi_dma_read extends App {
-  SpinalVerilog(new xg_axi_dma_read(DMA_CONFIG())).printPruned
+  SpinalVerilog(new xg_axi_dma_read(DMA_CONFIG(dataWidth = 512))).printPruned
 }
