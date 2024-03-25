@@ -94,7 +94,7 @@ case class TbFast(config : FastConfig) extends Fast(config){
     }
 }
 
-case class TbFastOrb1(config : FastConfig) extends FastOrbFull(config){
+case class TbFastOrb1(config : FastConfig) extends FastOrbSmall(config){
     def toHexString(width: Int, b: BigInt): String = {
         var s = b.toString(16)
         if (s.length < width) {
@@ -122,6 +122,9 @@ case class TbFastOrb1(config : FastConfig) extends FastOrbFull(config){
         io.sizeIn.rowNum #= row - 1
         io.sizeIn.colNum #= ((col+7) >> 3) - 1
         io.threshold #= threshold
+        if(config.isBlock){
+            io.thresholdInit #= threshold + 5
+        }
         io.mask #= matchMask(col % 8)
 
         io.mData.ready #= false
@@ -160,22 +163,25 @@ case class TbFastOrb1(config : FastConfig) extends FastOrbFull(config){
                 val colNum = io.mData.payload.size.colNum.toInt
                 val rowNum = io.mData.payload.size.rowNum.toInt
                 val data = io.mData.payload.score.toInt
-                val o = toHexString(4, colNum) + toHexString(4, rowNum) + toHexString(2, data)
-//                val o = toHexString(16, io.mData.payload.toBigInt)
-                println(o)
-                if (!temp.equals(o)) {
-                    error = error + 1
-                    if(error < 100){
-                        printf(i + "\n");
+                if((data >> 8 & 0x01) == 1) {
+                    val o = if (config.isBlock) toHexString(4, colNum) + toHexString(4, rowNum) + toHexString(4, data)
+                    else toHexString(4, colNum) + toHexString(4, rowNum) + toHexString(2, data % 256)
+                    //                val o = toHexString(16, io.mData.payload.toBigInt)
+                    println(o)
+                    if (!temp.equals(o)) {
+                        error = error + 1
+                        if (error < 100) {
+                            printf(i + "\n");
+                        }
                     }
+                    i = i + 1
+                    if (iter % 1000 == 999) {
+                        val errorP = error * 100.0 / total
+                        println(s"total iter = $total current iter =  $iter :::  error count = $error error percentage = $errorP%")
+                    }
+                    testFile.write(o + "\r\n")
+                    iter = iter + 1
                 }
-                i = i + 1
-                if (iter % 1000 == 999) {
-                    val errorP = error * 100.0 / total
-                    println(s"total iter = $total current iter =  $iter :::  error count = $error error percentage = $errorP%")
-                }
-                testFile.write(o + "\r\n")
-                iter = iter + 1
             }
         }
         if (error > 0) {
@@ -197,8 +203,8 @@ object TbFast extends App {
         defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH, resetKind = SYNC)
     )
     //SimConfig.withXSim.withWave.withConfig(spinalConfig).compile(new TbMaxPooling()).doSimUntilVoid { dut =>
-    SimConfig.withXilinxDevice("xq7vx690trf1157-2I").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.withConfig(spinalConfig).compile(new TbFastOrb1(FastConfig())).doSimUntilVoid { dut =>
-        dut.init(480, 640, 20)
+    SimConfig.withXilinxDevice("xq7vx690trf1157-2I").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.withConfig(spinalConfig).compile(new TbFastOrb1(FastConfig(isBlock = true))).doSimUntilVoid { dut =>
+        dut.init(480, 640, 15)
         dut.io.start #= true
         dut.clockDomain.waitSampling(10)
         val path = "C:\\myData\\data\\xsim_data\\slam\\Fast640480"

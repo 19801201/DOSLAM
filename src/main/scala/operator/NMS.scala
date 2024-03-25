@@ -14,11 +14,15 @@ import wa.xip.xpm._
     给出一个输入经过rowMem模块得到3行输出，经过windowsReg得到8 * 9个点的数据 经过Comparison得到是否是特征点的结果。最后结果保存在fifo中。
     然后控制反压。这个模块存在一个问题就是在计算边界的时候，边界条件需要给0。
  */
-case class NMSConfig(DATA_WIDTH : Int = 8,
+case class NMSConfig(
                      DATA_NUM : Int = 8,
-                     MEM_DEPTH : Int = 128
+                     MEM_DEPTH : Int = 128,
+                     isBolck: Boolean = false
                                     ){
+    val DATA_WIDTH : Int = if(isBolck) 9 else 8
+    val DATA2_WIDTH  : Int = if(isBolck) DATA_WIDTH + 1 else DATA_WIDTH
     val DATA_STREAM_WIDTH = DATA_WIDTH * DATA_NUM
+    val DATA2_STREAM_WIDTH = if(isBolck) DATA2_WIDTH * DATA_NUM else DATA_WIDTH * DATA_NUM
     val SIZE_WIDTH = 11
     val MEM_NUM = 2
     val WINDOWS_W = 3
@@ -27,7 +31,7 @@ case class NMSConfig(DATA_WIDTH : Int = 8,
     val y = Array(2, 2, 2, 1, 0, 0, 0, 1)
     val boundaryDetection = 16
 
-    val windows33 = WindowsConfig(DATA_NUM, WINDOWS_H, WINDOWS_W, MEM_DEPTH)
+    val windows33 = WindowsConfig(DATA_NUM, WINDOWS_H, WINDOWS_W, MEM_DEPTH, DATA_WIDTH = DATA_WIDTH)
 }
 
 class NMS(config:NMSConfig) extends Module{
@@ -326,7 +330,7 @@ class NMS1(config:NMSConfig) extends Module {
     val io = new Bundle {
         //增加运行速度，一次传输多个个数据
         val sData = slave Stream Bits(config.DATA_STREAM_WIDTH bits)
-        val mData = master Stream new FeaturePointOrb(config.SIZE_WIDTH, config.DATA_WIDTH)
+        val mData = master Stream new FeaturePointOrb(config.SIZE_WIDTH, config.DATA2_WIDTH)
         //输入信号和输出信号，确保size*size个数据同时输出
         val start = in Bool()
         //开始信号
@@ -376,13 +380,31 @@ class NMS1(config:NMSConfig) extends Module {
     val formatData = formatConversion(windows.io.mData.payload, config.DATA_NUM)
     val maxPointValid = Vec(formatData.map(data => Comparison(data, config.y, config.x))).asBits
     val maxPointValid_r = RegNextWhen(maxPointValid, windows.io.mData.fire, B(0, config.DATA_NUM bits))
+
+    val maxPointValid2 = if(config.isBolck) Vec(formatData.map(data => Comparison2(data, config.y, config.x))).asBits else null
+    val maxPointValid_r2 = if(config.isBolck) RegNextWhen(maxPointValid2, windows.io.mData.fire, B(0, 2 * config.DATA_NUM bits)) else null
+
     val scorePoint = Vec(formatData.map(data => data(1)(1)))
     val scorePoint_r = RegNextWhen(scorePoint, windows.io.mData.fire)
+
+    val scorePoint2_cr = if(config.isBolck) Vec(Bits(config.DATA2_WIDTH bits), config.DATA_NUM) else null
+    val maxPointValid2_cr = if(config.isBolck) Bits(config.DATA_NUM bits) else null
+    if(config.isBolck) {
+        for(i <- 0 until config.DATA_NUM){
+            scorePoint2_cr(i) := (maxPointValid_r2(2 * i) | maxPointValid_r2(2 * i + 1)) ## scorePoint_r(i)
+            when(scorePoint_r(i)(8) === True){
+                maxPointValid2_cr(i) := (maxPointValid_r2(2 * i) | maxPointValid_r2(2 * i + 1))
+            } otherwise {
+                maxPointValid2_cr(i) := maxPointValid_r2(2 * i + 1)
+            }
+        }
+    }
     printf("scorePoint_r:%d scorePoint_r.head.getWidth%d\n",scorePoint_r.size, scorePoint_r.head.getWidth)
     val cnt = ImageCount(windows.io.mData.fire, windows.io.sizeOut)
     //3、产生，从maxPointValid中按顺序选择出有效数据
     val mask = Reg(Bits(config.DATA_NUM bits)) init(0)
-    val curMaxPointValid = mask ^ maxPointValid_r
+    val curMaxPointValid = if(config.isBolck) mask ^ maxPointValid2_cr else mask ^ maxPointValid_r
+    //淘汰与不淘汰的选择。
     val key = OHToUInt(Vec(MASK4.map(mask => mask === curMaxPointValid)))//选择出有效数据 得到key
     when(windows.io.mData.fire){
         mask := B(0, config.DATA_NUM bits)
@@ -390,8 +412,13 @@ class NMS1(config:NMSConfig) extends Module {
         mask :=  mask | UIntToOh(key)
     }
     //4、保存新产生的数据
-    val fifo = StreamFifo(new FeaturePointOrb(config.SIZE_WIDTH, config.DATA_WIDTH), 1024)
-    fifo.io.push.payload := new FeaturePointOrb(config.SIZE_WIDTH, config.DATA_WIDTH, cnt.getSize().regNextWhen(windows.io.mData.fire).setSel(key), scorePoint_r.read(key).asUInt)
+    val fifo = StreamFifo(new FeaturePointOrb(config.SIZE_WIDTH, config.DATA2_WIDTH), 1024)
+    if(!config.isBolck){
+        fifo.io.push.payload := new FeaturePointOrb(config.SIZE_WIDTH, config.DATA_WIDTH, cnt.getSize().regNextWhen(windows.io.mData.fire).setSel(key), scorePoint_r.read(key).asUInt)
+    } else {
+        fifo.io.push.payload := new FeaturePointOrb(config.SIZE_WIDTH, config.DATA2_WIDTH, cnt.getSize().regNextWhen(windows.io.mData.fire).setSel(key), scorePoint2_cr.read(key).asUInt)
+    }
+
     fifo.io.push.valid := curMaxPointValid.orR
     fifo.io.pop <> io.mData
     val fifoReady = RegNext(fifo.io.availability > 16)
