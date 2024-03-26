@@ -14,9 +14,10 @@ case class WindowsConfig(DATA_NUM : Int = 10,
                          isVS : Boolean = false,//是否支持数据步长
                          VerticalStep : Int = 5,//垂直方向上的步长，通过垂直方向上的步长来舍弃数据，计数其值到4时，舍弃一行输出数据。
                          VerticalStepData : Int = 4,//垂直方向上取数据的数量
-                         useFlip:Boolean = true
+                         useFlip:Boolean = true,
+                           DATA_WIDTH:Int = 8
                         ) {
-  val DATA_WIDTH = 8
+//  val DATA_WIDTH = 8
   val DATA_STREAM_WIDTH = DATA_WIDTH * DATA_NUM
   //输入像素的位宽
   //输入大小的位宽
