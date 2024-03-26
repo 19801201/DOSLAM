@@ -18,15 +18,16 @@ object FAST_TYPE {
   val block = "distributed"
 }
 
-case class ORB_ComputeConfig(fastType:String = FAST_TYPE.small, MEM_DEPTH : Int = 128, SIZE_WIDTH : Int = 11, TopSort:Int = -1){
+case class ORB_ComputeConfig(fastType:String = FAST_TYPE.small, MEM_DEPTH : Int = 128, SIZE_WIDTH : Int = 11, TopSort:Int = -1, isBlock : Boolean = false, BSNum : Int = -1){
   val DATA_NUM : Int = 8
   val DATA_WIDTH : Int = 8
   val DATA_STREAM_WIDTH = DATA_NUM * DATA_WIDTH
 
-  val resizeConfig = ResizeConfig1(MEM_DEPTH = MEM_DEPTH)
-  val fastConfig = FastConfig(MEM_DEPTH = MEM_DEPTH)
-  val rsBriefConfig = RSBriefConfig(MEM_DEPTH = MEM_DEPTH)
-  val gaussianConfig = GaussianConfig(MEM_DEPTH = MEM_DEPTH)
+  val resizeConfig = ResizeConfig1(MEM_DEPTH = MEM_DEPTH, SIZE_WIDTH = SIZE_WIDTH)
+  val fastConfig = FastConfig(MEM_DEPTH = MEM_DEPTH,SIZE_WIDTH = SIZE_WIDTH, isBlock = isBlock)
+  val rsBriefConfig = RSBriefConfig(MEM_DEPTH = MEM_DEPTH, SIZE_WIDTH = SIZE_WIDTH)
+  val gaussianConfig = GaussianConfig(MEM_DEPTH = MEM_DEPTH, SIZE_WIDTH = SIZE_WIDTH)
+  val blockConfig = FastBlockSuppressionConfig(MEM_DEPTH = 1024, SIZE_WIDTH = SIZE_WIDTH, BSNum = BSNum, isBlock = isBlock)
 }
 
 class ORB_Compute(config : ORB_ComputeConfig) extends Module{
@@ -60,6 +61,8 @@ class ORB_Compute(config : ORB_ComputeConfig) extends Module{
     val outputLength = out(UInt(16 bits))
 
     val topNum = in(UInt(16 bits))
+
+    val thresholdInit = if(config.isBlock) (in UInt (config.DATA_WIDTH bits)) else null
   }
 
   val sizeInCompute = new ImageSize(config.SIZE_WIDTH, ((io.sizeIn.colNum + 8)>>3).resize(config.SIZE_WIDTH) - 1, io.sizeIn.rowNum)
@@ -71,6 +74,7 @@ class ORB_Compute(config : ORB_ComputeConfig) extends Module{
 //    case block => "many"
   }
   val gaussian = new Gaussian(config.gaussianConfig)
+  val blockSuppression = if(config.isBlock) new FastBlockSuppression(config.blockConfig) else null
   val rsBrief = new RSBriefOrb(config.rsBriefConfig)
   val fpDrop = new FpDrop(config.SIZE_WIDTH, config.DATA_WIDTH, 16, 16)
   val dataSum = new DataSum(config.SIZE_WIDTH, config.DATA_WIDTH, config.TopSort)
@@ -90,14 +94,23 @@ class ORB_Compute(config : ORB_ComputeConfig) extends Module{
   fifoR.io.pop <> resize.io.sData
 
   gaussian.io.mData <> rsBrief.io.sDataImage
-  fast.io.mData <> fpDrop.io.sData
-  fpDrop.io.mData <> rsBrief.io.sDataFeaturePoint
+
+  if(config.isBlock){
+    blockSuppression.io.sData <> fast.io.mData
+    blockSuppression.io.mData <> fpDrop.io.sData
+    fpDrop.io.mData <> rsBrief.io.sDataFeaturePoint
+  } else {
+    fast.io.mData <> fpDrop.io.sData
+    fpDrop.io.mData <> rsBrief.io.sDataFeaturePoint
+  }
+
 
   resize.io.mData <> io.mDataImage
 
   dataSum.io.sData <> fpDrop.io.mData.toFlowFire
   dataSum.io.sDataRsBrief <> rsBrief.io.mDataRsBrief
   dataSum.io.done := fast.io.done
+  if(config.isBlock) blockSuppression.io.done := fast.io.done
 
   dataSum.io.mdata <> io.mData
   dataSum.io.flush := io.start
@@ -110,6 +123,7 @@ class ORB_Compute(config : ORB_ComputeConfig) extends Module{
   fast.io.start := io.start
   gaussian.io.start := io.start
   rsBrief.io.start := io.start
+  if(config.isBlock) blockSuppression.io.start := io.start
 
   resize.io.mask := io.maskR
   gaussian.io.mask := io.maskG
@@ -128,9 +142,10 @@ class ORB_Compute(config : ORB_ComputeConfig) extends Module{
   fpDrop.io.sizeIn := io.sizeIn
 
   fast.io.threshold := io.threshold
+  if(config.isBlock) fast.io.thresholdInit := io.thresholdInit
   gaussian.io.inValid := io.inValid
 }
 
 object ORB_Compute extends App {
-  SpinalVerilog(new ORB_Compute(ORB_ComputeConfig(FAST_TYPE.full, 128))).printPruned
+  SpinalVerilog(new ORB_Compute(ORB_ComputeConfig(FAST_TYPE.small, 128,11,256,isBlock = true, BSNum = 3))).printPruned
 }

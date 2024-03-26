@@ -11,11 +11,11 @@ import dataStructure.{FeaturePoint, FeaturePointOrb}
 import spinal.lib.experimental.chisel.Module
 import utils.{ImageCount, ImageSize}
 
-case class ResizeConfig1(MEM_DEPTH : Int = 1024) {
+case class ResizeConfig1(MEM_DEPTH : Int = 1024,SIZE_WIDTH:Int = 11) {
   val DATA_WIDTH = 8//输入像素的位宽
   val DATA_SIZE = 8
   val DATA_STREAM_WIDTH = DATA_WIDTH * 8 //输入数据的总数
-  val SIZE_WIDTH = 11  //输入大小的位宽
+//  val  = 11  //输入大小的位宽
   val WINDOWS_SIZE = 2  //窗口的大小
 
   val windowsConfig = WindowsConfig(DATA_NUM = 10, WINDOWS_SIZE_H = 2, WINDOWS_SIZE_W = 1,MEM_DEPTH = MEM_DEPTH)
