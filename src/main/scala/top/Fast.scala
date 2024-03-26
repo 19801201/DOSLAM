@@ -97,9 +97,9 @@ class FastOrbFull(config:FastConfig) extends FastIO(config){
 //    io.temp.payload := fastDetectionWindows
 //    io.temp.valid := windows.io.mData.fire
     val fastDetectionWindows_r = Delay(fastDetectionWindows, 1)
-    val isFastFeaturePoints, isFastFeatureLight = Bits(config.DATA_NUM bits)
+    val isFastFeaturePoints, isFastFeatureLight,isFastFeaturePointsInit = Bits(config.DATA_NUM bits)
     val cornerValid = Bits(config.DATA_NUM bits)
-    val cornerData  = Vec(Bits(config.DATA_WIDTH bits), config.DATA_NUM)
+    val cornerData  = Vec(Bits(config.DATAB_WIDTH bits), config.DATA_NUM)
 
     val validCnt = ImageCount(windows.io.mData.fire, io.sizeIn)
     val rowValid = RegNextWhen(validCnt.rowValid(U(3, 2 bits), io.sizeIn.rowNum - 3), windows.io.mData.fire, False)
@@ -117,21 +117,35 @@ class FastOrbFull(config:FastConfig) extends FastIO(config){
         fastDetection.io.threshold := io.threshold
         isFastFeaturePoints(i) := fastDetection.io.mData.fire && fastDetection.io.mData.payload.orR && colValid && rowValid
         isFastFeatureLight(i) := fastDetection.io.mData.payload(0)
+
+        if(config.isBlock){
+            val fastDetectionInit = new FastDetection(FastDetectionConfig())
+            fastDetectionInit.io.sData.payload := data
+            fastDetectionInit.io.sData.valid := windows.io.mData.fire
+            fastDetectionInit.io.threshold := io.thresholdInit
+            isFastFeaturePointsInit(i) := fastDetectionInit.io.mData.fire && fastDetectionInit.io.mData.payload.orR && colValid && rowValid
+        }
+
         //3、计算分数
         val corner = new CornerScore(cornerScoreConfig())
         corner.io.sData.payload := fastDetectionWindows_r(i)
         corner.io.sData.valid := isFastFeaturePoints(i)
         corner.io.islight := fastDetection.io.mData.payload(0)
-        cornerData(i) := corner.io.mData.valid.mux(corner.io.mData.payload, B(0, config.DATA_WIDTH bits))
+        if(config.isBlock){
+            cornerData(i) := Delay(isFastFeaturePointsInit(i), 4) ## corner.io.mData.valid.mux(corner.io.mData.payload, B(0, config.DATA_WIDTH bits))
+        } else {
+            cornerData(i) := corner.io.mData.valid.mux(corner.io.mData.payload, B(0, config.DATA_WIDTH bits))
+        }
+
     })
     //得到的结果存入fifo
-    val fifo = new StreamFifo(Bits(config.DATA_STREAM_WIDTH bits), 128)
+    val fifo = new StreamFifo(Bits(config.DATAB_STREAM_WIDTH bits), 128)
     fifo.io.push.valid := Delay(windows.io.mData.fire, 5)
 
     val validMaskCnt = WaCounter(fifo.io.push.fire, config.SIZE_WIDTH, io.sizeIn.colNum)
     val validMaskValidS = validMaskCnt.count === RegNext(io.sizeIn.colNum - 1)
     for(i <- 0 until config.DATA_NUM){
-        fifo.io.push.payload.subdivideIn(config.DATA_NUM slices)(i) := (validMaskCnt.validLast() && io.mask(i) || validMaskValidS && io.mask(i + 8)).mux(B(0, config.DATA_WIDTH bits), cornerData(i))
+        fifo.io.push.payload.subdivideIn(config.DATA_NUM slices)(i) := (validMaskCnt.validLast() && io.mask(i) || validMaskValidS && io.mask(i + 8)).mux(B(0, config.DATAB_WIDTH bits), cornerData(i))
     }
     //io.sReady.setAsReg() init(False)
     when(fifo.io.availability > 10) {
@@ -140,7 +154,7 @@ class FastOrbFull(config:FastConfig) extends FastIO(config){
         windows.io.mData.ready := False
     }
     //得到的结果传入NMS
-    val nms = new NMS1(NMSConfig())
+    val nms = new NMS1(NMSConfig(MEM_DEPTH = config.MEM_DEPTH, isBolck = config.isBlock))
     nms.io.sData <> fifo.io.pop
     nms.io.start <> io.start
     nms.io.sizeIn := windows.io.sizeIn
@@ -581,7 +595,7 @@ object Fast extends App {
 }
 
 object FastOrbFull extends App {
-    SpinalVerilog(new FastOrbFull(FastConfig()))
+    SpinalVerilog(new FastOrbFull(FastConfig(isBlock = true)))
 }
 
 object FastOrb extends App {
