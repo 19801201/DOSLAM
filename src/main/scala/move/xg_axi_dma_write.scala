@@ -219,11 +219,11 @@ class xg_axi_dma_write(config : DMA_CONFIG) extends Component {
   //两种情况进行选择
   //最终的传输长度,包含两种情况 1、last提取结束，2、安装len正常结束
   val selFifo = ((trLenCycle > trFifoCycle) && fifoGetLast)
-  val selTrCycle = (selFifo).mux(trFifoCycle, trLenCycle)
+  val selTrCycle = RegNext((selFifo).mux(trFifoCycle, trLenCycle))
   val selTrSize =  (selFifo).mux(trFifoSize, trLenSize)
   //当前传输的起始地址和需要传输的数据长度
   //选择需要传输的字节数量,如果已经接收到last信号，并且当前fifo可用容量小于lenTrSIze的容量。那么选择fifoTrSize
-  descAddSize := (fsm.isExiting(fsm.PARA)).mux(selTrSize, U(0, 14 bits))
+  descAddSize := (RegNext(fsm.isExiting(fsm.PARA))).mux(selTrSize, U(0, 14 bits))
   //开始传输的时候，得到新的长度。
   //传输的周期数
   trCycleReg := RegNext(trCycleNext, U(0, trCycleNext.getWidth bits))

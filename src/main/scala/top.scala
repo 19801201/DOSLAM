@@ -66,7 +66,10 @@ class Top(config: TopConfig) extends Module {
   orb.io.colNumSrcIn       := instruction.io.ORBInstruction(9).asUInt.resized
   orb.io.inValid           := instruction.io.ORBInstruction(10).resized
   orb.io.topNum            := instruction.io.ORBInstruction(11).asUInt.resized
-  orb.io.thresholdInit     := instruction.io.ORBInstruction(12).asUInt.resized
+  if(config.isBlock){
+    orb.io.thresholdInit     := instruction.io.ORBInstruction(12).asUInt.resized
+  }
+
 
   instruction.io.ORBInstructionIn(0) := orb.io.inputLength.asBits.resized
   instruction.io.ORBInstructionIn(1) := orb.io.outputLength.asBits.resized
@@ -82,5 +85,5 @@ class Top(config: TopConfig) extends Module {
 }
 
 object Top extends App {
-  SpinalVerilog(new Top(TopConfig(FAST_TYPE.small, 128,11,256,isBlock = true, BSNum = 3))).printPruned
+  SpinalVerilog(new Top(TopConfig(FAST_TYPE.small, 128,11,-1,isBlock = false, BSNum = 3))).printPruned
 }
