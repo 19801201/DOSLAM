@@ -47,7 +47,7 @@ import spinal.lib.bus.regif._
 class Instruction(configDmaRead:DMA_CONFIG, configDmaWriteImage:DMA_CONFIG,configDmaWriteOrb:DMA_CONFIG) extends Component {
   val io = new Bundle {
     val regSData = slave(AxiLite4(log2Up(1 MiB), 32))
-    val ORBInstruction = out Vec(Reg(Bits(32 bits)) init 0, 12)
+    val ORBInstruction = out Vec(Reg(Bits(32 bits)) init 0, 13)
     val dmaImageRead = master Stream(axis_desc(configDmaRead))
     val dmaImageWrite = master Stream(axis_desc(configDmaWriteImage))
     val dmaOrbWrite = master Stream(axis_desc(configDmaWriteOrb))
@@ -66,6 +66,8 @@ class Instruction(configDmaRead:DMA_CONFIG, configDmaWriteImage:DMA_CONFIG,confi
   val maskG     = bus.newReg("maskG")
   val colNumFlilterIn     = bus.newReg("colNumFlilterIn")
   val rowNumSrcIn    = bus.newReg("rowNumSrcIn")
+  val colNumSrcIn    = bus.newReg("colNumSrcIn")
+
   val inValid = bus.newReg("inValid")
   val topNum = bus.newReg("topNum")
   val thresholdInit = bus.newReg("thresholdInit")
@@ -83,10 +85,11 @@ class Instruction(configDmaRead:DMA_CONFIG, configDmaWriteImage:DMA_CONFIG,confi
   io.ORBInstruction(6) := maskG.field(Bits(32 bits), WO, doc = "maskG")
   io.ORBInstruction(7) := colNumFlilterIn.field(Bits(32 bits), WO, doc = "colNumFlilterIn")
   io.ORBInstruction(8) := rowNumSrcIn.field(Bits(32 bits), WO, doc = "rowNumSrcIn")
+  io.ORBInstruction(9) := colNumSrcIn.field(Bits(32 bits), WO, doc = "colNumSrcIn")
 
-  io.ORBInstruction(9) := inValid.field(Bits(32 bits), WO, doc = "inValid")
-  io.ORBInstruction(10) := topNum.field(Bits(32 bits), WO, doc = "topNum")
-  io.ORBInstruction(11) := thresholdInit.field(Bits(32 bits), WO, doc = "thresholdInit")
+  io.ORBInstruction(10) := inValid.field(Bits(32 bits), WO, doc = "inValid")
+  io.ORBInstruction(11) := topNum.field(Bits(32 bits), WO, doc = "topNum")
+  io.ORBInstruction(12) := thresholdInit.field(Bits(32 bits), WO, doc = "thresholdInit")
 
   inputLength.field(Bits(32 bits), RO, doc = "inputLength") := io.ORBInstructionIn(0)
   outputLength.field(Bits(32 bits), RO, doc = "outputLength") := io.ORBInstructionIn(0)
