@@ -82,6 +82,94 @@ class Top(config: TopConfig) extends Module {
   io.AXI_s2mm_image <> wrImageDma.io.m_axi_s2mm
   io.AXI_s2mm_orb <> wrOrbDma.io.m_axi_s2mm
   io.regSData <> instruction.io.regSData
+  //修改名称
+  io.regSData.aw.valid.setName("regSData_axil_awvalid")
+  io.regSData.aw.ready.setName("regSData_axil_awready")
+  io.regSData.aw.payload.addr.setName("regSData_axil_awaddr")
+  io.regSData.aw.payload.prot.setName("regSData_axil_awprot")
+
+  io.regSData.w.valid.setName("regSData_axil_wvalid")
+  io.regSData.w.ready.setName("regSData_axil_wready")
+  io.regSData.w.payload.data.setName("regSData_axil_wdata")
+  io.regSData.w.payload.strb.setName("regSData_axil_wstrb")
+
+  io.regSData.b.valid.setName("regSData_axil_bvalid")
+  io.regSData.b.ready.setName("regSData_axil_bready")
+  io.regSData.b.payload.resp.setName("regSData_axil_bresp")
+
+  io.regSData.ar.valid.setName("regSData_axil_arvalid")
+  io.regSData.ar.ready.setName("regSData_axil_arready")
+  io.regSData.ar.payload.addr.setName("regSData_axil_araddr")
+  io.regSData.ar.payload.prot.setName("regSData_axil_arprot")
+
+  io.regSData.r.valid.setName("regSData_axil_rvalid")
+  io.regSData.r.ready.setName("regSData_axil_rready")
+  io.regSData.r.payload.data.setName("regSData_axil_rdata")
+  io.regSData.r.payload.resp.setName("regSData_axil_rresp")
+
+  io.AXI_s2mm_image.aw.valid.setName("writeImage_axi_awvalid")
+  io.AXI_s2mm_image.aw.ready.setName("writeImage_axi_awready")
+  io.AXI_s2mm_image.aw.payload.addr.setName("writeImage_axi_awaddr")
+  io.AXI_s2mm_image.aw.payload.id.setName("writeImage_axi_awid")
+  io.AXI_s2mm_image.aw.payload.len.setName("writeImage_axi_awlen")
+  io.AXI_s2mm_image.aw.payload.size.setName("writeImage_axi_awsize")
+  io.AXI_s2mm_image.aw.payload.burst.setName("writeImage_axi_awburst")
+  io.AXI_s2mm_image.aw.payload.lock.setName("writeImage_axi_awlock")
+  io.AXI_s2mm_image.aw.payload.cache.setName("writeImage_axi_awcache")
+  io.AXI_s2mm_image.aw.payload.prot.setName("writeImage_axi_awprot")
+
+  io.AXI_s2mm_image.w.valid.setName("writeImage_axi_wvalid")
+  io.AXI_s2mm_image.w.ready.setName("writeImage_axi_wready")
+  io.AXI_s2mm_image.w.payload.data.setName("writeImage_axi_wdata")
+  io.AXI_s2mm_image.w.payload.strb.setName("writeImage_axi_wstrb")
+  io.AXI_s2mm_image.w.payload.last.setName("writeImage_axi_wlast")
+
+  io.AXI_s2mm_image.b.valid.setName("writeImage_axi_bvalid")
+  io.AXI_s2mm_image.b.ready.setName("writeImage_axi_bready")
+  io.AXI_s2mm_image.b.payload.id.setName("writeImage_axi_bid")
+  io.AXI_s2mm_image.b.payload.resp.setName("writeImage_axi_bresp")
+
+  io.AXI_s2mm_orb.aw.valid.setName("writeOrb_axi_awvalid")
+  io.AXI_s2mm_orb.aw.ready.setName("writeOrb_axi_awready")
+  io.AXI_s2mm_orb.aw.payload.addr.setName("writeOrb_axi_awaddr")
+  io.AXI_s2mm_orb.aw.payload.id.setName("writeOrb_axi_awid")
+  io.AXI_s2mm_orb.aw.payload.len.setName("writeOrb_axi_awlen")
+  io.AXI_s2mm_orb.aw.payload.size.setName("writeOrb_axi_awsize")
+  io.AXI_s2mm_orb.aw.payload.burst.setName("writeOrb_axi_awburst")
+  io.AXI_s2mm_orb.aw.payload.lock.setName("writeOrb_axi_awlock")
+  io.AXI_s2mm_orb.aw.payload.cache.setName("writeOrb_axi_awcache")
+  io.AXI_s2mm_orb.aw.payload.prot.setName("writeOrb_axi_awprot")
+
+  io.AXI_s2mm_orb.w.valid.setName("writeOrb_axi_wvalid")
+  io.AXI_s2mm_orb.w.ready.setName("writeOrb_axi_wready")
+  io.AXI_s2mm_orb.w.payload.data.setName("writeOrb_axi_wdata")
+  io.AXI_s2mm_orb.w.payload.strb.setName("writeOrb_axi_wstrb")
+  io.AXI_s2mm_orb.w.payload.last.setName("writeOrb_axi_wlast")
+
+  io.AXI_s2mm_orb.b.valid.setName("writeOrb_axi_bvalid")
+  io.AXI_s2mm_orb.b.ready.setName("writeOrb_axi_bready")
+  io.AXI_s2mm_orb.b.payload.id.setName("writeOrb_axi_bid")
+  io.AXI_s2mm_orb.b.payload.resp.setName("writeOrb_axi_bresp")
+
+  io.AXI_mm2s_image.r.valid
+  io.AXI_mm2s_image.ar.valid.setName("writeImage_axi_arvalid")
+  io.AXI_mm2s_image.ar.ready.setName("writeImage_axi_arready")
+  io.AXI_mm2s_image.ar.payload.addr.setName("writeImage_axi_araddr")
+  io.AXI_mm2s_image.ar.payload.id.setName("writeImage_axi_arid")
+  io.AXI_mm2s_image.ar.payload.len.setName("writeImage_axi_arlen")
+  io.AXI_mm2s_image.ar.payload.size.setName("writeImage_axi_arsize")
+  io.AXI_mm2s_image.ar.payload.burst.setName("writeImage_axi_arburst")
+  io.AXI_mm2s_image.ar.payload.lock.setName("writeImage_axi_arlock")
+  io.AXI_mm2s_image.ar.payload.cache.setName("writeImage_axi_arcache")
+  io.AXI_mm2s_image.ar.payload.prot.setName("writeImage_axi_arprot")
+
+  io.AXI_mm2s_image.r.valid.setName("writeImage_axi_rvalid")
+  io.AXI_mm2s_image.r.ready.setName("writeImage_axi_rready")
+  io.AXI_mm2s_image.r.payload.data.setName("writeImage_axi_rdata")
+  io.AXI_mm2s_image.r.payload.id.setName("writeImage_axi_rid")
+  io.AXI_mm2s_image.r.payload.resp.setName("writeImage_axi_rresp")
+  io.AXI_mm2s_image.r.payload.last.setName("writeImage_axi_rlast")
+
 }
 
 object Top extends App {
