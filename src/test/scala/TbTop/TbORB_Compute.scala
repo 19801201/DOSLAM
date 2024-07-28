@@ -24,6 +24,7 @@ case class TbORB_Compute(config : ORB_ComputeConfig) extends ORB_Compute(config)
 
   var finishResize = false
   var finishFpRs = false
+  var stop = 0
 
   def matchMask(x: Int) : Int = {x match {
     case 0 => 0x00e0 //0000 0000 1110 0000
@@ -94,8 +95,8 @@ case class TbORB_Compute(config : ORB_ComputeConfig) extends ORB_Compute(config)
         io.sData.valid #= true
         clockDomain.waitSamplingWhere(io.sData.ready.toBoolean)
         io.sData.valid #= false
-        val randomInt = random.nextInt(25)
-        if (randomInt < 4) clockDomain.waitSampling(randomInt)
+//        val randomInt = random.nextInt(25)
+//        if (randomInt < 4) clockDomain.waitSampling(randomInt)
       }
     }
   }
@@ -160,8 +161,7 @@ case class TbORB_Compute(config : ORB_ComputeConfig) extends ORB_Compute(config)
         if (io.mData.valid.toBoolean && io.mData.ready.toBoolean) {
           io.start #= false
           val temp = dstFile(iter)
-          //          val o = toHexString(16, io.mData.payload.fp)
-
+          //val o = toHexString(16, io.mData.payload.fp)
           val colNum = io.mData.payload.fp.size.colNum.toInt
           val rowNum = io.mData.payload.fp.size.rowNum.toInt
           val score = io.mData.payload.fp.score.toInt
@@ -202,14 +202,13 @@ case class TbORB_Compute(config : ORB_ComputeConfig) extends ORB_Compute(config)
       clockDomain.waitSampling()
       val testFile = new PrintWriter(new File(dst_scala))
       val dstFile = Source.fromFile(dst).getLines().toArray
-      val total = if(config.TopSort <= 0) dstFile.length else topNum
+      val total = if(config.TopSort <= 0) dstFile.length else topNum * 4
       var error = 0
       var iter = 0
       var i = 0
       while (i < total) {
         clockDomain.waitSampling()
         if (io.mData.valid.toBoolean && io.mData.ready.toBoolean) {
-          io.start #= false
           val temp = dstFile(iter)
 
           val data = io.mData.payload.rs.toBigInt
@@ -230,7 +229,6 @@ case class TbORB_Compute(config : ORB_ComputeConfig) extends ORB_Compute(config)
               printf(i + ":" + o + "\n")
             }
           }
-          i = i + 1
           if (iter % 1000 == 999 || iter == (total - 1)) {
             val errorP = error * 100.0 / total
             println(s"Rs : total iter = $total current iter =  $iter :::  error count = $error error percentage = $errorP%")
@@ -268,8 +266,8 @@ object TbORB_Compute extends App {
     defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH, resetKind = SYNC)
   )
   //SimConfig.withXSim.withWave.withConfig(spinalConfig).compile(new TbMaxPooling()).doSimUntilVoid { dut =>
-  SimConfig.withXilinxDevice("xq7vx690trf1157-2I").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.withConfig(spinalConfig).compile(new TbORB_Compute(ORB_ComputeConfig(fastType = FAST_TYPE.full))).doSimUntilVoid { dut =>
-    val topNum = 30
+  SimConfig.withXilinxDevice("xq7vx690trf1157-2I").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.withConfig(spinalConfig).compile(new TbORB_Compute(ORB_ComputeConfig(fastType = FAST_TYPE.small,TopSort = 256))).doSimUntilVoid { dut =>
+    val topNum = 200
     dut.init(480, 640, 20, topNum)
     dut.io.start #= true
     dut.clockDomain.waitSampling(10)

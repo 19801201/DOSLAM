@@ -109,7 +109,7 @@ class TbResize(config: ResizeConfig1) extends Resize(config){
       println(s"ac\n")
     }
 
-    sleep(100)
+    sleep(4000)
     testFile.close()
     simSuccess()
   }
@@ -122,10 +122,10 @@ object TbResize extends App {
   )
   //SimConfig.withXSim.withWave.withConfig(spinalConfig).compile(new TbMaxPooling()).doSimUntilVoid { dut =>
   SimConfig.withXilinxDevice("xq7vx690trf1157-2I").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.withConfig(spinalConfig).compile(new TbResize(ResizeConfig1())).doSimUntilVoid { dut =>
-    dut.init(645, 650)
+    dut.init(641, 641)
     dut.io.start #= true
     dut.clockDomain.waitSampling(10)
-    val path = "C:\\myData\\data\\xsim_data\\slam\\Resize650645"
+    val path = "C:\\myData\\data\\xsim_data\\slam\\Resize641641"
     //dut.in("G:\\SpinalHDL_CNN_Accelerator\\simData\\paddingSrc.txt")
     dut.in(path + "\\SourceDataIn.txt")
     dut.out(path + "\\simDataout.coe",path + "\\ReferenceDataOut.txt")

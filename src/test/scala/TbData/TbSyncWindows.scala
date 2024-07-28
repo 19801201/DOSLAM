@@ -116,7 +116,16 @@ object TbSyncWindows extends App {
         MEM_DEPTH = 1024)
     val dataGenerateRow33Config = WindowsConfig(DATA_NUM = 8, WINDOWS_SIZE_H = 3, WINDOWS_SIZE_W = 3, MEM_DEPTH = 1024)
 
-    SimConfig.withXilinxDevice("xq7vx690trf1157-2I").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.compile(new TbSyncWindows(dataGenerateRow73Config)).doSimUntilVoid { dut =>
+    val userSimulateScriptPost =
+        s"""
+           |launch_runs synth_1 -jobs 28
+           |wait_on_run synth_1
+           |launch_simulation -mode post-synthesis -type functional -scripts_only
+           |close_project
+           |return
+           |""".stripMargin
+
+    SimConfig.withSimScript(userSimulateScriptPost).withXilinxDevice("xq7vx690trf1157-2I").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.compile(new TbSyncWindows(dataGenerateRow73Config)).doSimUntilVoid { dut =>
         dut.init
         dut.io.start #= true
         val path = "C:\\myData\\data\\xsim_data\\slam\\ReflectionFillWindow7_3"

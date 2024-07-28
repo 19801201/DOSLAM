@@ -19,10 +19,11 @@ import top._
 
 case class TopConfig(fastType:String = FAST_TYPE.small, MEM_DEPTH : Int = 128, SIZE_WIDTH : Int = 11, TopSort:Int = -1, isBlock : Boolean = false, BSNum : Int = -1){
   val orbConfig = ORB_ComputeConfig(fastType, MEM_DEPTH, SIZE_WIDTH, TopSort, isBlock, BSNum)
-  val readDmaConfig = DMA_CONFIG(dataWidth = 64)
+  val readDmaConfig = DMA_CONFIG(dataWidth = 64, brustLength = 256, fifoDepthWidth = 9)
   val writeDmaImageConfig = DMA_CONFIG(dataWidth = 64)
   val writeDmaOrbConfig = DMA_CONFIG(dataWidth = 512)
 }
+
 class Top(config: TopConfig) extends Module {
   val io = new Bundle{
     val regSData = slave(AxiLite4(log2Up(1 MiB), 32))
@@ -30,13 +31,30 @@ class Top(config: TopConfig) extends Module {
     val AXI_s2mm_image = master(Axi4WriteOnly(config.writeDmaImageConfig.axiConfig)) //图片写
     val AXI_s2mm_orb = master(Axi4WriteOnly(config.writeDmaOrbConfig.axiConfig)) //特征点读取
   }
+  //三个计数器是其一，
+  val inputCnt = WaCounter(io.AXI_mm2s_image.r.fire, 32, 640*480+100)
+  val outputCnt = WaCounter(io.AXI_s2mm_image.w.fire, 32, 640*480+100)
+  val outputFpCnt = WaCounter(io.AXI_s2mm_orb.w.fire, 32, 640*480+100)
+  //每个通道的valid和ready去检查他的一个状态
+
 
   val orb = new ORB_Compute(config.orbConfig)
-  val rdImageDma = new xg_axi_dma_read(config.readDmaConfig)
+  val rdImageDma = new xg_axi_dma_read2(config.readDmaConfig)
   val wrImageDma = new xg_axi_dma_write(config.writeDmaImageConfig)
   val wrOrbDma = new xg_axi_dma_write(config.writeDmaOrbConfig)
   val instruction = new Instruction(config.readDmaConfig, config.writeDmaImageConfig, config.writeDmaOrbConfig)
 
+  instruction.io.debugInstruction(0) := inputCnt.count.asBits
+  instruction.io.debugInstruction(1) := outputCnt.count.asBits
+  instruction.io.debugInstruction(2) := outputFpCnt.count.asBits
+
+  instruction.io.debugInstruction(3) := rdImageDma.io.m_axis_mm2s.valid.asBits(32 bits)
+  instruction.io.debugInstruction(4) := wrImageDma.io.s_axis_s2mm.valid.asBits(32 bits)
+  instruction.io.debugInstruction(5) := wrOrbDma.io.s_axis_s2mm.valid.asBits(32 bits)
+
+  instruction.io.debugInstruction(6) := rdImageDma.io.m_axis_mm2s.ready.asBits(32 bits)
+  instruction.io.debugInstruction(7) := wrImageDma.io.s_axis_s2mm.ready.asBits(32 bits)
+  instruction.io.debugInstruction(8) := wrOrbDma.io.s_axis_s2mm.ready.asBits(32 bits)
   //数据流入
   orb.io.sData.valid := rdImageDma.io.m_axis_mm2s.valid
   orb.io.sData.payload := rdImageDma.io.m_axis_mm2s.payload.data
@@ -50,7 +68,7 @@ class Top(config: TopConfig) extends Module {
   //特征点流出
   orb.io.mData.ready := wrOrbDma.io.s_axis_s2mm.ready
   wrOrbDma.io.s_axis_s2mm.valid := orb.io.mData.valid
-  wrOrbDma.io.s_axis_s2mm.payload.data := B(0, wrOrbDma.io.s_axis_s2mm.payload.data.getWidth - 32 - orb.io.mData.payload.rs.getWidth bits) ## orb.io.mData.payload.rs.asBits ## orb.io.mData.payload.fp.asBits.resize(32)
+  wrOrbDma.io.s_axis_s2mm.payload.data := B(0, wrOrbDma.io.s_axis_s2mm.payload.data.getWidth - (3 * 32) - orb.io.mData.payload.rs.getWidth bits) ## orb.io.mData.payload.rs.asBits ## orb.io.mData.payload.fp.size.rowNum.resize(32) ## orb.io.mData.payload.fp.size.colNum.resize(32) ## orb.io.mData.payload.fp.score.resize(32)
   wrOrbDma.io.s_axis_s2mm.payload.keep.setAll()
   wrOrbDma.io.s_axis_s2mm.payload.last := orb.io.mDataLast
   //特征点控制数据
@@ -69,7 +87,6 @@ class Top(config: TopConfig) extends Module {
   if(config.isBlock){
     orb.io.thresholdInit     := instruction.io.ORBInstruction(12).asUInt.resized
   }
-
 
   instruction.io.ORBInstructionIn(0) := orb.io.inputLength.asBits.resized
   instruction.io.ORBInstructionIn(1) := orb.io.outputLength.asBits.resized
@@ -170,8 +187,74 @@ class Top(config: TopConfig) extends Module {
   io.AXI_mm2s_image.r.payload.resp.setName("writeImage_axi_rresp")
   io.AXI_mm2s_image.r.payload.last.setName("writeImage_axi_rlast")
 
+  instruction.io.debugInstruction2 <> orb.io.debugInstruction
+  instruction.io.debugInstruction3 <> orb.io.debugInstruction2
+
+  val inputCnt1 = WaCounter(orb.io.sData.fire, 32, 640*480+100)
+  val outputCnt1 = WaCounter(orb.io.mDataImage.fire, 32, 640*480+100)
+
+  val startRecode1 = Reg(Bool()) init(False)
+  when(orb.io.start.rise()){
+    startRecode1.set()
+  } elsewhen(inputCnt1.count === U(640 * 480 / 8 ,32 bits)){
+    startRecode1.clear()
+  }
+
+  val startRecode2 = Reg(Bool()) init(False)
+  when(orb.io.start.rise()){
+    startRecode2.set()
+  } elsewhen(outputCnt1.count === U(24576 ,32 bits)){
+    startRecode2.clear()
+  }
+
+  val startRecode3 = Reg(Bool()) init(False)
+  when(orb.io.start.rise()){
+    startRecode3.set()
+  } elsewhen(orb.io.mDataLast){
+    startRecode3.clear()
+  }
+
+  val inputIdleCnt = WaCounter(startRecode1 && !orb.io.sData.valid && orb.io.sData.ready, 32, 640*480*10)
+  val inputWaitCnt = WaCounter(startRecode1 && orb.io.sData.valid && !orb.io.sData.ready, 32, 640*480*10)
+  val inputNoFireCnt = WaCounter(startRecode1 && !orb.io.sData.valid && !orb.io.sData.ready, 32, 640*480*10)
+
+  val outputIdleCnt = WaCounter(startRecode2 && !orb.io.mDataImage.valid && orb.io.mDataImage.ready, 32, 640*480*10)
+  val outputWaitCnt = WaCounter(startRecode2 && orb.io.mDataImage.valid && !orb.io.mDataImage.ready, 32, 640*480*10)
+  val outputNoFireCnt = WaCounter(startRecode2 && !orb.io.mDataImage.valid && !orb.io.mDataImage.ready, 32, 640*480*10)
+
+  val fpIdleCnt = WaCounter(startRecode3 && !orb.io.mData.valid && orb.io.mData.ready, 32, 640*480*10)
+  val fpWaitCnt = WaCounter(startRecode3 && orb.io.mData.valid && !orb.io.mData.ready, 32, 640*480*10)
+  val fpNoFireCnt = WaCounter(startRecode3 && !orb.io.mData.valid && !orb.io.mData.ready, 32, 640*480*10)
+
+  when(instruction.io.debugClear.rise(False)){
+    inputIdleCnt.clear
+    inputWaitCnt.clear
+    inputNoFireCnt.clear
+    outputIdleCnt.clear
+    outputWaitCnt.clear
+    outputNoFireCnt.clear
+    fpIdleCnt.clear
+    fpWaitCnt.clear
+    fpNoFireCnt.clear
+
+    inputCnt.clear
+    outputCnt.clear
+    outputFpCnt.clear
+  }
+
+  instruction.io.debugInstruction4(0) := inputIdleCnt.count.asBits
+  instruction.io.debugInstruction4(1) := inputWaitCnt.count.asBits
+  instruction.io.debugInstruction4(2) := inputNoFireCnt.count.asBits
+  instruction.io.debugInstruction4(3) := outputIdleCnt.count.asBits
+  instruction.io.debugInstruction4(4) := outputWaitCnt.count.asBits
+  instruction.io.debugInstruction4(5) := outputNoFireCnt.count.asBits
+  instruction.io.debugInstruction4(6) := fpIdleCnt.count.asBits
+  instruction.io.debugInstruction4(7) := fpWaitCnt.count.asBits
+  instruction.io.debugInstruction4(8) := fpNoFireCnt.count.asBits
+
+  instruction.io.debugClear <> orb.io.debugClear
 }
 
 object Top extends App {
-  SpinalVerilog(new Top(TopConfig(FAST_TYPE.small, 128,11,-1,isBlock = false, BSNum = 3))).printPruned
+  SpinalVerilog(new Top(TopConfig(FAST_TYPE.small, 128, 11, 256, isBlock = false, BSNum = -1))).printPruned
 }

@@ -52,6 +52,16 @@ class Instruction(configDmaRead:DMA_CONFIG, configDmaWriteImage:DMA_CONFIG,confi
     val dmaImageWrite = master Stream(axis_desc(configDmaWriteImage))
     val dmaOrbWrite = master Stream(axis_desc(configDmaWriteOrb))
     val ORBInstructionIn = in Vec(Bits(32 bits), 2)
+
+    val debugInstruction = in Vec(Bits(32 bits), 9)
+
+    val debugInstruction2 = in Vec(Bits(32 bits), 9)
+
+    val debugInstruction3 = in Vec(Bits(32 bits), 6)
+
+    val debugInstruction4 = in Vec(Bits(32 bits), 9)
+
+    val debugClear = out Bool()
   }
   noIoPrefix()
   //    AxiLite4SpecRenamer(io.regSData)
@@ -92,7 +102,7 @@ class Instruction(configDmaRead:DMA_CONFIG, configDmaWriteImage:DMA_CONFIG,confi
   io.ORBInstruction(12) := thresholdInit.field(Bits(32 bits), WO, doc = "thresholdInit")
 
   inputLength.field(Bits(32 bits), RO, doc = "inputLength") := io.ORBInstructionIn(0)
-  outputLength.field(Bits(32 bits), RO, doc = "outputLength") := io.ORBInstructionIn(0)
+  outputLength.field(Bits(32 bits), RO, doc = "outputLength") := io.ORBInstructionIn(1)
 
   //数据读入
   val dmaImageReadValid = bus.newReg("dmaImageReadValid")
@@ -126,6 +136,84 @@ class Instruction(configDmaRead:DMA_CONFIG, configDmaWriteImage:DMA_CONFIG,confi
   dmaOrbWriteReady.field(Bits(1 bits), RO, doc = "Ready") := io.dmaOrbWrite.ready.asBits
   io.dmaOrbWrite.addr := dmaOrbWriteAddr.field(Bits(32 bits), WO, doc = "Addr").asUInt
   io.dmaOrbWrite.len := dmaOrbWriteLen.field(Bits(32 bits), WO, doc = "Len").asUInt.resized
+
+  val a1  = bus.newReg("a1")
+  val a2  = bus.newReg("a2")
+  val a3  = bus.newReg("a3")
+  val v4  = bus.newReg("v4")
+  val v5  = bus.newReg("v5")
+  val v6  = bus.newReg("v6")
+  val r4  = bus.newReg("r4")
+  val r5  = bus.newReg("r5")
+  val r6  = bus.newReg("r6")
+
+  a1.field(Bits(32 bits), RO, doc = "io.AXI_mm2s_image.r.count") := io.debugInstruction(0)
+  a2.field(Bits(32 bits), RO, doc = "io.AXI_s2mm_image.w,count") := io.debugInstruction(1)
+  a3.field(Bits(32 bits), RO, doc = "io.AXI_s2mm_orb.w.count  ") := io.debugInstruction(2)
+  v4.field(Bits(32 bits), RO, doc = "io.AXI_mm2s_image.r.valid") := io.debugInstruction(3)
+  v5.field(Bits(32 bits), RO, doc = "io.AXI_s2mm_image.w,valid") := io.debugInstruction(4)
+  v6.field(Bits(32 bits), RO, doc = "io.AXI_s2mm_orb.w.valid  ") := io.debugInstruction(5)
+  r4.field(Bits(32 bits), RO, doc = "io.AXI_mm2s_image.r.ready") := io.debugInstruction(6)
+  r5.field(Bits(32 bits), RO, doc = "io.AXI_s2mm_image.w.ready") := io.debugInstruction(7)
+  r6.field(Bits(32 bits), RO, doc = "io.AXI_s2mm_orb.w.ready  ") := io.debugInstruction(8)
+
+  val aa1  = bus.newReg("fast.io.mData.count           ")
+  val aa2  = bus.newReg("rsBrief.io.mDataRsBrief.count ")
+  val aa3  = bus.newReg("fpDrop.io.mData.count         ")
+  val av4  = bus.newReg("fast.io.mData.valid           ")
+  val av5  = bus.newReg("rsBrief.io.mDataRsBrief.valid ")
+  val av6  = bus.newReg("fpDrop.io.mData.valid         ")
+  val ar4  = bus.newReg("fast.io.mData.ready           ")
+  val ar5  = bus.newReg("rsBrief.io.mDataRsBrief.ready ")
+  val ar6  = bus.newReg("fpDrop.io.mData.ready         ")
+
+  aa1.field(Bits(32 bits), RO, doc = "fast.io.mData.count           ") := io.debugInstruction2(0)
+  aa2.field(Bits(32 bits), RO, doc = "rsBrief.io.mDataRsBrief.count ") := io.debugInstruction2(1)
+  aa3.field(Bits(32 bits), RO, doc = "fpDrop.io.mData.count         ") := io.debugInstruction2(2)
+  av4.field(Bits(32 bits), RO, doc = "fast.io.mData.valid           ") := io.debugInstruction2(3)
+  av5.field(Bits(32 bits), RO, doc = "rsBrief.io.mDataRsBrief.valid ") := io.debugInstruction2(4)
+  av6.field(Bits(32 bits), RO, doc = "fpDrop.io.mData.valid         ") := io.debugInstruction2(5)
+  ar4.field(Bits(32 bits), RO, doc = "fast.io.mData.ready           ") := io.debugInstruction2(6)
+  ar5.field(Bits(32 bits), RO, doc = "rsBrief.io.mDataRsBrief.ready ") := io.debugInstruction2(7)
+  ar6.field(Bits(32 bits), RO, doc = "fpDrop.io.mData.ready         ") := io.debugInstruction2(8)
+
+  val aaa1  = bus.newReg("fast.io.sData.count ")
+  val aaa2  = bus.newReg("score.io.sData.count")
+  val aaa3  = bus.newReg("nms.io.sData.count  ")
+  val aav4  = bus.newReg("fast.io.sData.valid ")
+  val aav5  = bus.newReg("score.io.sData.valid")
+  val aav6  = bus.newReg("nms.io.sData.valid  ")
+
+  aaa1.field(Bits(32 bits), RO, doc = "fast.io.sData.count ") := io.debugInstruction3(0)
+  aaa2.field(Bits(32 bits), RO, doc = "score.io.sData.count") := io.debugInstruction3(1)
+  aaa3.field(Bits(32 bits), RO, doc = "nms.io.sData.count  ") := io.debugInstruction3(2)
+  aav4.field(Bits(32 bits), RO, doc = "fast.io.sData.valid ") := io.debugInstruction3(3)
+  aav5.field(Bits(32 bits), RO, doc = "score.io.sData.valid") := io.debugInstruction3(4)
+  aav6.field(Bits(32 bits), RO, doc = "nms.io.sData.valid  ") := io.debugInstruction3(5)
+
+  val aaaaa1  = bus.newReg("inputIdleCnt"   )
+  val aaaaa2  = bus.newReg("inputWaitCnt"   )
+  val aaaaa3  = bus.newReg("inputNoFireCnt" )
+  val aaaav4  = bus.newReg("outputIdleCnt"  )
+  val aaaav5  = bus.newReg("outputWaitCnt"  )
+  val aaaav6  = bus.newReg("outputNoFireCnt")
+  val aaaar4  = bus.newReg("fpIdleCnt"      )
+  val aaaar5  = bus.newReg("fpWaitCnt"      )
+  val aaaar6  = bus.newReg("fpNoFireCnt"    )
+
+  aaaaa1.field(Bits(32 bits), RO, doc = "inputIdleCnt"   ) := io.debugInstruction4(0)
+  aaaaa2.field(Bits(32 bits), RO, doc = "inputWaitCnt"   ) := io.debugInstruction4(1)
+  aaaaa3.field(Bits(32 bits), RO, doc = "inputNoFireCnt" ) := io.debugInstruction4(2)
+  aaaav4.field(Bits(32 bits), RO, doc = "outputIdleCnt"  ) := io.debugInstruction4(3)
+  aaaav5.field(Bits(32 bits), RO, doc = "outputWaitCnt"  ) := io.debugInstruction4(4)
+  aaaav6.field(Bits(32 bits), RO, doc = "outputNoFireCnt") := io.debugInstruction4(5)
+  aaaar4.field(Bits(32 bits), RO, doc = "fpIdleCnt"      ) := io.debugInstruction4(6)
+  aaaar5.field(Bits(32 bits), RO, doc = "fpWaitCnt"      ) := io.debugInstruction4(7)
+  aaaar6.field(Bits(32 bits), RO, doc = "fpNoFireCnt"    ) := io.debugInstruction4(8)
+
+  val debugClear  = bus.newReg("debug clear")
+
+  io.debugClear := debugClear.field(Bits(1 bits), WO, doc = "start").asBool
 
   bus.accept(HtmlGenerator("REG.html", "ORB SLAM"))
 }

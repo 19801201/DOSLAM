@@ -41,7 +41,7 @@ class tan2(config:tan2Config) extends Module{
     }
 
     def control(start: Bool, B: UInt, valid:Bool): UInt = {
-        val comState = Reg(Bool()).setWhen(start)
+        val comState = Reg(Bool()).setWhen(start) init(False)
         val count = WaCounter(start||comState, 3, 6)
         comState.clearWhen(count.valid)
         switch(count.count){
@@ -54,7 +54,7 @@ class tan2(config:tan2Config) extends Module{
                 B := 0
             }
         }
-        valid := Delay(count.count.orR || start, 4)
+        valid := Delay(count.count.orR || start, 4, init = False)
         Delay(count.count, 4)
     }
 
@@ -98,7 +98,7 @@ class tan2(config:tan2Config) extends Module{
 
 
     val sum = new Area {
-        io.mData.valid := Delay(io.sData.valid, 7 + 4)//计算延迟4个周期 等待7个周期的计算
+        io.mData.valid := Delay(io.sData.valid, 7 + 4, init = False)//计算延迟4个周期 等待7个周期的计算
         val quadrant = Reg(UInt(2 bits)) init 0
         when(io.sData.valid){//记录数据在那个象限内
             when(io.sData.payload(1) > 0 && io.sData.payload(0) >= 0){
@@ -113,7 +113,7 @@ class tan2(config:tan2Config) extends Module{
         }
         val selTan = UInt(3 bits)
         inputCompute(selTan)//得到结果
-        switch(Delay(quadrant, 4)){//根据输入所在的象限得到最终结果，数据本身会延迟8个周期，因此再这个基础上再延迟4个周期确保数据输出时，一定处于有效位置
+        switch(Delay(quadrant, 4, init = U(0, 2 bits))){//根据输入所在的象限得到最终结果，数据本身会延迟8个周期，因此再这个基础上再延迟4个周期确保数据输出时，一定处于有效位置
             is(0){
                 io.mData.payload := selTan.resized
             }

@@ -163,7 +163,7 @@ case class TbFastOrb1(config : FastConfig) extends FastOrbSmall(config){
                 val colNum = io.mData.payload.size.colNum.toInt
                 val rowNum = io.mData.payload.size.rowNum.toInt
                 val data = io.mData.payload.score.toInt
-                if((data >> 8 & 0x01) == 1) {
+//                if((data >> 8 & 0x01) == 1) {
                     val o = if (config.isBlock) toHexString(4, colNum) + toHexString(4, rowNum) + toHexString(4, data)
                     else toHexString(4, colNum) + toHexString(4, rowNum) + toHexString(2, data % 256)
                     //                val o = toHexString(16, io.mData.payload.toBigInt)
@@ -181,7 +181,7 @@ case class TbFastOrb1(config : FastConfig) extends FastOrbSmall(config){
                     }
                     testFile.write(o + "\r\n")
                     iter = iter + 1
-                }
+//                }
             }
         }
         if (error > 0) {
@@ -203,8 +203,8 @@ object TbFast extends App {
         defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH, resetKind = SYNC)
     )
     //SimConfig.withXSim.withWave.withConfig(spinalConfig).compile(new TbMaxPooling()).doSimUntilVoid { dut =>
-    SimConfig.withXilinxDevice("xq7vx690trf1157-2I").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.withConfig(spinalConfig).compile(new TbFastOrb1(FastConfig(isBlock = true))).doSimUntilVoid { dut =>
-        dut.init(480, 640, 15)
+    SimConfig.withXilinxDevice("xq7vx690trf1157-2I").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.withConfig(spinalConfig).compile(new TbFastOrb1(FastConfig(isBlock = false))).doSimUntilVoid { dut =>
+        dut.init(480, 640, 20)
         dut.io.start #= true
         dut.clockDomain.waitSampling(10)
         val path = "C:\\myData\\data\\xsim_data\\slam\\Fast640480"
@@ -259,6 +259,15 @@ object TbDataGenerateImage extends App {
         defaultClockDomainFrequency = FixedFrequency(200 MHz),
         defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH, resetKind = SYNC)
     )
+
+    val userSimulateScriptPost =
+        s"""
+           |launch_runs synth_1 -jobs 28
+           |wait_on_run synth_1
+           |launch_simulation -mode post-synthesis -type -scripts_only
+           |close_project
+           |""".stripMargin
+
     //SimConfig.withXSim.withWave.withConfig(spinalConfig).compile(new TbMaxPooling()).doSimUntilVoid { dut =>
     SimConfig.withWave.withConfig(spinalConfig).compile(new TbDataGenerateImage).doSimUntilVoid { dut =>
         dut.init

@@ -97,7 +97,7 @@ object fsmIVPPRF {
 
       IDLE
         .whenIsActive {
-          when(start.rise()) {
+          when(start.rise(False)) {
             goto(VALID)
           }
         }

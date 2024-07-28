@@ -421,11 +421,11 @@ class NMS1(config:NMSConfig) extends Module {
 
     fifo.io.push.valid := curMaxPointValid.orR
     fifo.io.pop <> io.mData
-    val fifoReady = RegNext(fifo.io.availability > 16)
+    val fifoReady = RegNext(fifo.io.availability > 16,init = True)
     windows.io.mData.ready := fifoReady && (curMaxPointValid.subdivideIn(config.DATA_NUM slices).map(p => p.asUInt).reduceBalancedTree(_ +^ _) <= U"3'b1")
 
     val done = RegInit(False) setWhen(cnt.fireCnt) clearWhen (io.start)
-    io.done := (Delay(done, 2) && !fifo.io.pop.valid).rise(False)
+    io.done := (Delay(done, 2, init = False) && !fifo.io.pop.valid).rise(False)
 }
 
 object NMS extends App {

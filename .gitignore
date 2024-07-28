@@ -10,3 +10,5 @@ tmp
 /xsim.dir/
 *.v
 *.wdb
+/.idea/
+/project/

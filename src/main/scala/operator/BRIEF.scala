@@ -84,7 +84,7 @@ class BRIEF(config:BRIEFConfig) extends Module{
         val dataB = dataSel(true, sel: UInt)
 
         io.mData.payload := compare(dataA, dataB)
-        io.mData.valid := Delay(io.sData.valid, 1)
+        io.mData.valid := Delay(io.sData.valid, 1,init = False)
         io.mData.payload.setAsReg() init(0)
     }
 }

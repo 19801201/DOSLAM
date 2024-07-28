@@ -55,7 +55,7 @@ class SortDrop[T <: Data](dataType: HardType[T], len: Int, compare: (T, T) => Bo
   io.inputLength := inputCnt.count
   io.outputLength := outputCnt.count
 
-  merge.io.output.throwWhen(outputCnt.count > io.topNum || outputCnt.count >= inputCnt.count) <> io.mData
+  merge.io.output.throwWhen(outputCnt.count >= io.topNum || outputCnt.count >= inputCnt.count) <> io.mData
 
   io.outputLast := done && (outputCnt.count + 1 === io.topNum || outputCnt.count + 1 === inputCnt.count)
 

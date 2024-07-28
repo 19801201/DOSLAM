@@ -11,6 +11,7 @@ import dataStructure.{FeaturePoint, FeaturePointOrb, OrbFpRsIO}
 import spinal.lib.experimental.chisel.Module
 import utils.{ImageCount, ImageSize}
 import spinal.lib.experimental.chisel.Module
+import config.Config._
 
 object FAST_TYPE {
   val small = "auto"
@@ -63,16 +64,26 @@ class ORB_Compute(config : ORB_ComputeConfig) extends Module{
     val topNum = in(UInt(16 bits))
 
     val thresholdInit = if(config.isBlock) (in UInt (config.DATA_WIDTH bits)) else null
+
+    val done = out Bool();
+
+    val debugInstruction = out Vec(Bits(32 bits), 9)
+    val debugInstruction2 = out Vec(Bits(32 bits), 6)
+    val debugClear = in Bool()
   }
 
   val sizeInCompute = new ImageSize(config.SIZE_WIDTH, ((io.sizeIn.colNum + 8)>>3).resize(config.SIZE_WIDTH) - 1, io.sizeIn.rowNum)
 
   val resize = new Resize(config.resizeConfig)
-  val fast:FastIO = config.fastType match {
-    case FAST_TYPE.small => new FastOrbSmall(config.fastConfig)
-    case FAST_TYPE.full => new FastOrbFull(config.fastConfig)
-//    case block => "many"
-  }
+//  val fast:FastIO = config.fastType match {
+//    case FAST_TYPE.small => new FastOrbSmall(config.fastConfig)
+//    case FAST_TYPE.full => new FastOrbFull(config.fastConfig)
+////    case block => "many"
+//  }
+  val fast = new FastOrbSmall(config.fastConfig);
+
+  io.debugClear <> fast.io.debugClear
+
   val gaussian = new Gaussian(config.gaussianConfig)
   val blockSuppression = if(config.isBlock) new FastBlockSuppression(config.blockConfig) else null
   val rsBrief = new RSBriefOrb(config.rsBriefConfig)
@@ -110,10 +121,11 @@ class ORB_Compute(config : ORB_ComputeConfig) extends Module{
   dataSum.io.sData <> fpDrop.io.mData.toFlowFire
   dataSum.io.sDataRsBrief <> rsBrief.io.mDataRsBrief
   dataSum.io.done := fast.io.done
+  io.done := fast.io.done
   if(config.isBlock) blockSuppression.io.done := fast.io.done
 
   dataSum.io.mdata <> io.mData
-  dataSum.io.flush := io.start
+  dataSum.io.flush := io.start.rise(False)
   io.inputLength := dataSum.io.inputLength
   io.outputLength := dataSum.io.outputLength
   io.mDataLast := dataSum.io.mdataLast
@@ -144,6 +156,32 @@ class ORB_Compute(config : ORB_ComputeConfig) extends Module{
   fast.io.threshold := io.threshold
   if(config.isBlock) fast.io.thresholdInit := io.thresholdInit
   gaussian.io.inValid := io.inValid
+
+  addTouch(fast.io.sData)
+  addTouch(fast.io.mData)
+
+  val inputCnt = WaCounter(fast.io.mData.fire, 32, 640*480+100)
+  val outputCnt = WaCounter(rsBrief.io.mDataRsBrief.fire, 32, 640*480+100)
+  val outputFpCnt = WaCounter(fpDrop.io.mData.fire, 32, 640*480+100)
+
+  when(io.debugClear.rise(False)){
+    inputCnt.clear
+    outputCnt.clear
+    outputFpCnt.clear
+  }
+
+  io.debugInstruction(0) := RegNext(inputCnt.count.asBits)
+  io.debugInstruction(1) := RegNext(outputCnt.count.asBits)
+  io.debugInstruction(2) := RegNext(outputFpCnt.count.asBits)
+
+  io.debugInstruction(3) := RegNext(fast.io.mData.valid.asBits(32 bits))
+  io.debugInstruction(4) := RegNext(rsBrief.io.mDataRsBrief.valid.asBits(32 bits))
+  io.debugInstruction(5) := RegNext(fpDrop.io.mData.valid.asBits(32 bits))
+
+  io.debugInstruction(6) := RegNext(fast.io.mData.ready.asBits(32 bits))
+  io.debugInstruction(7) := RegNext(rsBrief.io.mDataRsBrief.ready.asBits(32 bits))
+  io.debugInstruction(8) := RegNext(fpDrop.io.mData.ready.asBits(32 bits))
+  io.debugInstruction2 <> fast.io.debugInstruction
 }
 
 object ORB_Compute extends App {

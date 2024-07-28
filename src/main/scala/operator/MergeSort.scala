@@ -146,6 +146,9 @@ class TopMerge[T <: Data](dataType: HardType[T], len: Int, compare: (T, T) => Bo
 
   val switchCount = WaCounter(output.fire, widthBits, len - 1)
   val inputDataUseA = Reg(Bool()) init (False) toggleWhen (switchCount.valid && output.fire)
+  when(fsm.clear){
+    inputDataUseA := False
+  }
   val fifoA = StreamFifo(io.input.payload, len)//初始输入缓存
   val fifoB = StreamFifo(io.input.payload, len/2)//暂存数据缓存
   val fifoC = StreamFifo(io.input.payload, len)//结果输出缓存
@@ -198,6 +201,7 @@ class TopMerge[T <: Data](dataType: HardType[T], len: Int, compare: (T, T) => Bo
   //    }
   when(fsm.clear){
     fifoBComparecount.clear
+    selCompareA := True
   }
 
   //当已经输出output个文件但是，所有的数据还没有，那么需要输出这个数据，top数据可以直接clear，inputComparecount需要把所有的数据清空，这个速度可能会导致整体的流水线减慢一半，

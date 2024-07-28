@@ -93,7 +93,7 @@ class syncWindowsPadding(config : WindowsConfig) extends Component{
     val rdData = Flow(Vec(Bits(config.DATA_STREAM_WIDTH bits), rowData.size))
     rdData.valid := data.fire
     rdData.payload := rowDataFlip
-    val windowsReg = WindowsBuf(rdData, config.WINDOWS_SIZE_W)
+    val windowsReg = WindowsBuf(rdData, config.WINDOWS_SIZE_W,B(0,config.DATA_STREAM_WIDTH bits))
     val colKey = selKey(RegNextWhen(cnt.colCnt.count, data.fire, 0))
 
     io.mData.payload.zipWithIndex.foreach((cur) => dataFlip(windowsReg(cur._2), cur._1, colKey, BORDER_REFLECT101.getFlip(if(config.useFlip) config.WINDOWS_SIZE_W else 3),config.useFlip))
@@ -127,7 +127,7 @@ class syncWindowsPadding2(config : WindowsConfig) extends Component{
         }
 
         if (delayCount == 0) sel
-        else Delay(sel, delayCount)
+        else Delay(sel, delayCount, init = U(0, 5 bits))
     }
     io.sizeOut.rowNum := io.sizeIn.rowNum
     io.sizeOut.colNum := io.sizeIn.colNum

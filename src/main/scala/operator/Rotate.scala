@@ -111,9 +111,9 @@ class Rotate(config:rotateConfig) extends Module{
     }
 
     val fifoRsBrief = StreamFifo(Bits(64 bits), 128)
+    brief1.payload.foreach(_.setAsReg() init(0))
     when(RegNext(selCount1 =/= 0 & tan1HaveData & tanCount1 < 4)){//如果满足的话就位移
         for(i <- 0 to 31){
-            brief1.payload(i).setAsReg() init 0
             brief1.payload(i) := brief1.payload((i + 1) % 32)
         }
     }

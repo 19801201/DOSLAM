@@ -13,3 +13,6 @@ libraryDependencies ++= Seq(
   "com.github.spinalhdl" % "spinalhdl-lib_2.11" % "1.9.3",
   compilerPlugin("com.github.spinalhdl" % "spinalhdl-idsl-plugin_2.11" % "1.9.3"),
 )
+
+//lazy val root = (project in file("."))
+//  .dependsOn(ProjectRef(file("C:/myData/ev/spinalHDL/SpinalHDL"), "spinalhdl"))

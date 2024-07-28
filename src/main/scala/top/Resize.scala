@@ -1,4 +1,7 @@
 package top
+
+import config.Config
+import config.Config.{addDebug, addKeepHierarchy, addTouch}
 import operator.NMSConfig
 import spinal.core._
 import spinal.lib._
@@ -74,6 +77,11 @@ class Resize(config:ResizeConfig1 = ResizeConfig1()) extends Module{
     }
   }
   resize.io.mData <> io.mData
+
+  addTouch(conversion.io.sData)
+  addTouch(conversion.io.mData)
+  addTouch(windows2.io.mData)
+  addDebug(resize.io.mData)
 }
 
 object Resize extends App {

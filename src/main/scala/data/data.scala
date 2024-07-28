@@ -18,7 +18,7 @@ object RowBuf {
             def gen(): Mem[T] = {
                 val mem = Mem(HardType(inputData.payload), wordCount = MEM_DEPTH).addAttribute("ram_style = \"block\"")
 
-                mem.write(wrAddr, rdData(i + 1), RegNext(inputData.fire)) //同步写,使能延迟
+                mem.write(wrAddr, rdData(i + 1), RegNext(inputData.fire,init = False)) //同步写,使能延迟
                 //存入
                 rdData(i) := mem.readSync(rdAddr, inputData.fire) //同步读
                 //从0到n-2的范围的MEM读出
@@ -35,7 +35,7 @@ object RowBuf {
  * 缓存一个窗口数据WINDOWS_SIZE_W * rdData.size大小的窗口，当wen使能时
  */
 object WindowsBuf{
-    def apply[T<:Data](rdData: Flow[Vec[T]], WINDOWS_SIZE_W:Int): Vec[Vec[T]] = {
+    def apply[T<:Data](rdData: Flow[Vec[T]], WINDOWS_SIZE_W:Int, defaultValue: T = null): Vec[Vec[T]] = {
         val windows = Vec(Vec(weakCloneOf(rdData.payload.head), WINDOWS_SIZE_W), rdData.payload.size)
         for (h <- 0 until rdData.payload.size) {
             for (w <- 0 until WINDOWS_SIZE_W) {
@@ -43,6 +43,7 @@ object WindowsBuf{
                     windows(h)(w) := rdData.payload(h)
                 } else {
                     windows(h)(w).setAsReg()
+                    if(defaultValue != null) windows(h)(w) init defaultValue
                     when(rdData.fire) {
                         windows(h)(w) := windows(h)(w + 1)
                     }

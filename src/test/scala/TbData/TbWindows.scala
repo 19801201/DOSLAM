@@ -94,6 +94,7 @@ object TbWindows extends App {
     defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH, resetKind = SYNC)
   )
   //SimConfig.withXSim.withWave.withConfig(spinalConfig).compile(new TbMaxPooling()).doSimUntilVoid { dut =>
+  //override val SimConfig =
   SimConfig.withWave.withConfig(spinalConfig).compile(new TbWindows()).doSimUntilVoid { dut =>
     dut.init
     dut.io.start #= true

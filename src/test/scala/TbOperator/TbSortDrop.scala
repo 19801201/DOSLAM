@@ -9,19 +9,22 @@ import operator.{MergeA, MergeSort, MergeSortConfig, SortDrop}
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 //随机数输入的长度，最大的排序长度，取出topNum个数据，
-case class TbSortDrop(randDataInputLen:Int, maxLen:Int,topNum : Int) extends SortDrop(SInt(32 bits), maxLen, (left: SInt, right: SInt) => left > right){
+case class TbSortDrop(randDataInputLen:Int, maxLen:Int,topNum : Int) extends SortDrop(SInt(32 bits), maxLen, (left: SInt, right: SInt) => left > right) {
   val random = new Random()
   val randData = (1 to randDataInputLen).map(_ => random.nextInt())
   val sortData = randData.sorted.reverse
 
   println("randdata")
-  for((data, i) <- randData.zipWithIndex){
+  for ((data, i) <- randData.zipWithIndex) {
     println(i + ":" + data)
   }
   println("sortdata")
   for ((data, i) <- sortData.zipWithIndex) {
     println(i + ":" + data)
   }
+
+  var cont = false
+  val num = 4
 
   def toHexString(width: Int, b: BigInt): String = {
     var s = b.toString(16)
@@ -50,59 +53,79 @@ case class TbSortDrop(randDataInputLen:Int, maxLen:Int,topNum : Int) extends Sor
   def in(): Unit = {
     val random = new Random()
     fork {
-      for (line <- randData) {
-        io.sData.payload #= line
-        io.sData.valid #= true
-        clockDomain.waitSamplingWhere(io.sData.valid.toBoolean && io.sData.ready.toBoolean)
-        io.sData.valid #= false
-        val randomInt = random.nextInt(25)
-        if(randomInt < 4)  clockDomain.waitSampling(randomInt)
-      }
-      io.sData.valid #= false
+      for (a <- 1 to num) {
+        println("Value of a: " + a);
 
-      clockDomain.waitSampling(20)
-      io.done #= true
-      clockDomain.waitSampling(1)
-      io.done #= false
+        for (line <- randData) {
+          io.sData.payload #= line
+          io.sData.valid #= true
+          clockDomain.waitSamplingWhere(io.sData.valid.toBoolean && io.sData.ready.toBoolean)
+          io.sData.valid #= false
+          val randomInt = random.nextInt(25)
+          if (randomInt < 4) clockDomain.waitSampling(randomInt)
+        }
+        io.sData.valid #= false
+
+        clockDomain.waitSampling(20)
+        io.done #= true
+        clockDomain.waitSampling(1)
+        io.done #= false
+
+        while (cont == false) {
+          clockDomain.waitSampling(10)
+        }
+      }
     }
   }
 
   def out(): Unit = {
     clockDomain.waitSampling()
-
-    var error = 0
-    var iter = 0
-    var i = 0
-    val total = math.min(topNum, randData.length)
-    while (i < total) {
-      clockDomain.waitSampling()
-      io.mData.ready.randomize()
-      //io.ido.ready #= true
-      if (io.mData.valid.toBoolean && io.mData.ready.toBoolean) {
-        //io.ic.start #= false
-        val temp = sortData(i)
-        //val o = toHexString(8, io.ido.payload.toBigInt)
-        i = i + 1
-        if (!temp.equals(io.mData.payload.toInt)) {
-          error = error + 1
-          println("i:" + i + "data:" + io.mData.payload.toInt)
-        }
-        if (iter % 1000 == 999) {
-          val errorP = error * 100.0 / total
-          println(s"total iter = $total current iter =  $iter :::  error count = $error error percentage = $errorP%")
-        }
-        iter = iter + 1
+    for (a <- 1 to num) {
+      println("Value of a: " + a)
+      if(a == 2){
+        clockDomain.waitSampling(10000)
+        simSuccess()
       }
+
+      var error = 0
+      var iter = 0
+      var i = 0
+      val total = math.min(topNum, randData.length)
+
+      while (i < total) {
+        clockDomain.waitSampling()
+        io.mData.ready.randomize()
+        //io.ido.ready #= true
+        if (io.mData.valid.toBoolean && io.mData.ready.toBoolean) {
+          //io.ic.start #= false
+          val temp = sortData(i)
+          //val o = toHexString(8, io.ido.payload.toBigInt)
+          i = i + 1
+          if (!temp.equals(io.mData.payload.toInt)) {
+            error = error + 1
+            println("i:" + i + "data:" + io.mData.payload.toInt)
+          }
+          if (iter % 1000 == 999) {
+            val errorP = error * 100.0 / total
+            println(s"total iter = $total current iter =  $iter :::  error count = $error error percentage = $errorP%")
+          }
+          iter = iter + 1
+        }
+      }
+      if (error > 0) {
+        println(s"error is $error\n")
+      } else {
+        println(s"ac\n")
+      }
+      clockDomain.waitSampling(1000)
+      io.flush #= true
+      clockDomain.waitSampling(1000)
+      //    simSuccess()
+      io.flush #= false
+      cont = true
+      clockDomain.waitSampling(20)
+      cont = false
     }
-    if (error > 0) {
-      println(s"error is $error\n")
-    } else {
-      println(s"ac\n")
-    }
-    clockDomain.waitSampling(1000)
-    io.flush #= true
-    clockDomain.waitSampling(1000)
-    simSuccess()
   }
 }
 
@@ -111,9 +134,9 @@ object TbSortDrop extends App {
     defaultClockDomainFrequency = FixedFrequency(200 MHz),
     defaultConfigForClockDomains = ClockDomainConfig(resetActiveLevel = HIGH, resetKind = SYNC)
   )
-  val randDataInputLen = 3100
+  val randDataInputLen = 276
   val maxLen = 256
-  val topNum = 120
+  val topNum = 200
   SimConfig.withXilinxDevice("xq7vx690trf1157-2I").withXSimSourcesPaths(ArrayBuffer("src/test/ip"), ArrayBuffer("")).withWave.withXSim.withConfig(spinalConfig).compile(new TbSortDrop(randDataInputLen, maxLen, topNum)).doSimUntilVoid { dut =>
     dut.init
     dut.clockDomain.waitSampling(100)
@@ -121,6 +144,8 @@ object TbSortDrop extends App {
     dut.in()
 
     dut.out()
+
+
 
   }
 }

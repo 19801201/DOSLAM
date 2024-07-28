@@ -42,7 +42,7 @@ class ReflectionFillWindow(config:ReflectionFillWindowConfig) extends Module{
             def gen(): Mem[Bits] = {
                 val mem = Mem(Bits(config.DATA_STREAM_WIDTH bits), wordCount = config.MEM_DEPTH).addAttribute("ram_style = \"block\"")
 
-                mem.write(wrAddr, rdData(i + 1), RegNext(wen))//同步写,使能延迟
+                mem.write(wrAddr, rdData(i + 1), RegNext(wen, init = False))//同步写,使能延迟
                 //存入
                 rdData(i) := mem.readSync(rdAddr)//同步读
                 //从0到n-2的范围的MEM读出
@@ -69,7 +69,7 @@ class ReflectionFillWindow(config:ReflectionFillWindowConfig) extends Module{
 
         IDLE
           .whenIsActive {
-              when(io.start.rise()) {
+              when(io.start.rise(False)) {
                   goto(VALID)
               }
           }
@@ -94,9 +94,9 @@ class ReflectionFillWindow(config:ReflectionFillWindowConfig) extends Module{
     val rdData = Vec(Bits(config.DATA_STREAM_WIDTH bits), config.WINDOWS_SIZE_H)
     rowMem(rdData, io.sData.payload, fsm.cen, io.colNumIn)
     io.sData.ready := fsm.isActive(fsm.VALID) && io.mReady//这个数据有效时才进数据
-    io.mData.valid := RegNext((fsm.isActive(fsm.VALID) && io.sData.fire && fsm.rowCnt.count > 2) || (fsm.isActive(fsm.DOWN) && io.mReady))
+    io.mData.valid := RegNext((fsm.isActive(fsm.VALID) && io.sData.fire && fsm.rowCnt.count > 2) || (fsm.isActive(fsm.DOWN) && io.mReady), init = False)
 
-    switch(RegNext(fsm.rowCnt.count)){
+    switch(RegNext(fsm.rowCnt.count, init = U(0, fsm.rowCnt.count.getWidth bits))){
         is(3){
             io.mData.payload(0) := rdData(6)
             io.mData.payload(1) := rdData(5)
@@ -119,8 +119,8 @@ class ReflectionFillWindow(config:ReflectionFillWindowConfig) extends Module{
         }
     }
     io.mData.payload(3) := rdData(3)
-    when(RegNext(fsm.isActive(fsm.DOWN))){
-        switch(RegNext(fsm.downCnt.count)) {
+    when(RegNext(fsm.isActive(fsm.DOWN), init = False)){
+        switch(RegNext(fsm.downCnt.count, init = U(0, fsm.downCnt.count.getWidth bits))) {
             is(0) {
                 io.mData.payload(4) := rdData(4)
                 io.mData.payload(5) := rdData(5)

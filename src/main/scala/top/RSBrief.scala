@@ -238,7 +238,9 @@ class RSBriefOrb(config:RSBriefConfig) extends Module {
     val fp2 = fp1.m2sPipe(holdPayload = true)
     //3、窗口数据的选择，根据fp2的数据获取对应的窗口数据
     val windowsCnt = ImageCount(windows31.io.mData.fire, io.sizeIn)
-    windowsCnt.colCnt.count.addAttribute("MAX_FANOUT", 200)
+//    windowsCnt.colCnt.count.addAttribute("MAX_FANOUT", 200)
+//    fp1.payload.size.colNum.addAttribute("MAX_FANOUT", 500)
+
     val rowValid = windowsCnt.rowCnt.count === fp2.payload.size.rowNum
     val colValids = Bits(config.DATA_NUM bits)
     for(sel <- 0 until  config.DATA_NUM){

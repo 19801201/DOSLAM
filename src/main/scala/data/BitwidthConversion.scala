@@ -102,9 +102,6 @@ class BitwidthConversion(config: BitwidthConversionConfig) extends Component {//
      */
     val mValid = io.sData.valid || (fsm.isActive(fsm.ENDLINE) && !fsm.dataInvalid)
       //复位
-    when(fsm.EndOfLine && fsm.isActive(fsm.ENDLINE)) { //到了行末需要重新清零数据，
-        BWCcount.clear
-    }
     //衔接--上层模块
     val sDataPayTemp = RegNextWhen(io.sData.payload, io.sData.fire, B"64'b0") //接收上层数据
     io.sData.ready := fsm.isActive(fsm.VALID) && (io.mData.ready || !io.mData.valid)
@@ -135,6 +132,10 @@ class BitwidthConversion(config: BitwidthConversionConfig) extends Component {//
             io.mData.payload := io.sData.payload(63 downto 0) ## sDataPayTemp.asBits(63 downto 48)
             io.mData.valid := mValid
         }
+    }
+
+    when(fsm.EndOfLine && fsm.isExiting(fsm.ENDLINE)) { //到了行末需要重新清零数据，
+        BWCcount.clear
     }
 }
 

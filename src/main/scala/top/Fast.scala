@@ -52,6 +52,8 @@ class FastIO(config:FastConfig) extends Module {
         val thresholdInit = if(config.isBlock) (in UInt (config.DATA_WIDTH bits)) else null
         val mask = in Bits(16 bits)
         val done = out Bool()
+        val debugInstruction = out Vec(Bits(32 bits), 6)
+        val debugClear = in Bool()
     }
 }
 
@@ -232,9 +234,9 @@ class FastOrbSmall(config:FastConfig) extends FastIO(config) {
     //CornerScore延迟4个周期
 
     val mask = Reg(Bits(config.DATA_NUM bits)) init (0)
-    val FastFeaturePointsNeed = Delay(fastDetectionWindows.fire, 1).mux(isFastFeaturePoints, isNextFastFeaturePoints)
-    val FastFeatureLightNeed = Delay(fastDetectionWindows.fire, 1).mux(isFastFeatureLight, isNextFastFeatureLight)
-    val FastFeaturePointsInitNeed = if(config.isBlock) Delay(fastDetectionWindows.fire, 1).mux(isFastFeaturePointsInit, isNextFastFeaturePointsInit) else null
+    val FastFeaturePointsNeed = Delay(fastDetectionWindows.fire, 1, init = False).mux(isFastFeaturePoints, isNextFastFeaturePoints)
+    val FastFeatureLightNeed = Delay(fastDetectionWindows.fire, 1, init = False).mux(isFastFeatureLight, isNextFastFeatureLight)
+    val FastFeaturePointsInitNeed = if(config.isBlock) Delay(fastDetectionWindows.fire, 1, init = False).mux(isFastFeaturePointsInit, isNextFastFeaturePointsInit) else null
 
     val curMaxPointValid = mask ^ FastFeaturePointsNeed
     val key = OHToUInt(Vec(config.MASK4.map(mask => mask === curMaxPointValid))) //选择出有效数据 得到key
@@ -250,14 +252,14 @@ class FastOrbSmall(config:FastConfig) extends FastIO(config) {
     fastDetectionWindows_r.ready := curMaxPointValidLess1
     curMaxPointValidLess1 := (curMaxPointValid.subdivideIn(config.DATA_NUM slices).map(p => p.asUInt).reduceBalancedTree(_ +^ _) <= U"3'b1")
 
-    val delayFastFeaturePointsNeed = if(config.isBlock) Delay(FastFeaturePointsInitNeed(key),4) else null
+    val delayFastFeaturePointsNeed = if(config.isBlock) Delay(FastFeaturePointsInitNeed(key),4, init = False) else null
     //4、结果保存
-    val saveKey = Delay(key, 4)
-    val saveCurMaxPointValid = Delay(curMaxPointValid, 4)
+    val saveKey = Delay(key, 4, init = U(0, key.getWidth bits))
+    val saveCurMaxPointValid = Delay(curMaxPointValid, 4, init = B(0, curMaxPointValid.getWidth bits))
     val fifo = StreamFifo(Bits(config.DATAB_STREAM_WIDTH bits), 64)
-    fifoReady := RegNext(fifo.io.availability >= 8)
+    fifoReady := RegNext(fifo.io.availability >= 8) init(True)
     val saveData = Vec(Reg(Bits(config.DATAB_WIDTH bits)) init 0, config.DATA_NUM)
-    when(Delay(fastDetectionWindows_r.fire, 5)) {
+    when(Delay(fastDetectionWindows_r.fire, 5, init = False)) {
         saveData.foreach(_ := B(0, config.DATAB_WIDTH bits))
     }
     when(score.io.mData.fire){
@@ -268,12 +270,12 @@ class FastOrbSmall(config:FastConfig) extends FastIO(config) {
         }
     }
     val validMaskCnt = WaCounter(fifo.io.push.fire, config.SIZE_WIDTH, io.sizeIn.colNum)
-    val validMaskValidS = validMaskCnt.count === RegNext(io.sizeIn.colNum - 1)
+    val validMaskValidS = validMaskCnt.count === RegNext(io.sizeIn.colNum - 1,init = U(0x7ff, io.sizeIn.colNum.getWidth bits))
     for(i <- 0 until config.DATA_NUM){
         fifo.io.push.payload.subdivideIn(config.DATA_NUM slices)(i) := (validMaskCnt.validLast() && io.mask(i) || validMaskValidS && io.mask(i + 8)).mux(B(0, config.DATAB_WIDTH bits), saveData(i))
     }
 
-    fifo.io.push.valid := Delay((saveCurMaxPointValid.subdivideIn(config.DATA_NUM slices).map(p => p.asUInt).reduceBalancedTree(_ +^ _) <= U"3'b1") && Delay(fastDetectionWindows_r.valid, 4), 1)
+    fifo.io.push.valid := Delay((saveCurMaxPointValid.subdivideIn(config.DATA_NUM slices).map(p => p.asUInt).reduceBalancedTree(_ +^ _) <= U"3'b1") && Delay(fastDetectionWindows_r.valid, 4, init = False), 1, init = False)
     //将结果传给NMS
     val nms = new NMS1(NMSConfig(MEM_DEPTH = config.MEM_DEPTH, isBolck = config.isBlock))
     nms.io.sData <> fifo.io.pop
@@ -282,6 +284,24 @@ class FastOrbSmall(config:FastConfig) extends FastIO(config) {
     nms.io.mData <> io.mData
     io.done <> nms.io.done
 //    io.mData <> fifo.io.pop
+
+    val inputCnt = WaCounter(io.sData.fire, 32, 640*480+100)
+    val outputCnt = WaCounter(score.io.sData.fire, 32, 640*480+100)
+    val outputFpCnt = WaCounter(nms.io.sData.fire, 32, 640*480+100)
+
+    io.debugInstruction(0) := RegNext(inputCnt.count.asBits)
+    io.debugInstruction(1) := RegNext(outputCnt.count.asBits)
+    io.debugInstruction(2) := RegNext(outputFpCnt.count.asBits)
+
+    io.debugInstruction(3) := RegNext(io.sData.valid.asBits(32 bits))
+    io.debugInstruction(4) := RegNext(score.io.sData.valid.asBits(32 bits))
+    io.debugInstruction(5) := RegNext(nms.io.sData.valid.asBits(32 bits))
+
+    when(io.debugClear.rise(False)){
+        inputCnt.clear
+        outputCnt.clear
+        outputFpCnt.clear
+    }
 }
 
 //class myOrbFast(config:FastConfig) extends Module{

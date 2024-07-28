@@ -104,12 +104,12 @@ class IC_Angle(config:IC_AngleConfig) extends Module{
     def control(B1:UInt, B2:UInt, sel:UInt, first:Bool, end:Bool): Unit = {//整个模块的控制模块
         //现在的valid是不对的需要延迟若干个周期与 乘法器配合
         val timeCount = WaCounter(sData.valid, 3, 7)//从0记录到7，必须保证valid信号有效的时间是8个周期，让timeCount能够恢复初始状态
-        val DelayValid3 = Delay(sData.valid, 3)
-        val DelayEnd3 = Delay(timeCount.valid, 3)
+        val DelayValid3 = Delay(sData.valid, 3, init = False)
+        val DelayEnd3 = Delay(timeCount.valid, 3, init = False)
         B1 := bData(DelayValid3, 15, DelayEnd3)//记录到最后一个下周期恢复到初始状态
         B2 := bData(DelayValid3, 14, DelayEnd3)//14 12 10 8 6 4 2 0
         sel := timeCount.count
-        first := Delay(!timeCount.count.orR, 3)
+        first := Delay(!timeCount.count.orR, 3, init = False)
         end := DelayEnd3
     }
     //根据sData和计数器选择不太的数据给计算模块

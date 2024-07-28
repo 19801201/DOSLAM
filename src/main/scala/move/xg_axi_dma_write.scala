@@ -147,8 +147,9 @@ class axiDmaWriteFsm extends StateMachine {//分为四个状态，空闲，有�
 }
 
 object computeTrSize{
-  def apply(trDesc : axis_desc, config:DMA_CONFIG): UInt ={
-    val trSizeCount = Reg(UInt(13 bits)) init 0
+  def apply(trDesc : axis_desc, config:DMA_CONFIG, isDelay : Boolean = true): UInt ={
+    val trSizeCount = UInt(13 bits)
+    if(isDelay) trSizeCount.setAsReg() init 0
     when(trDesc.stBurstSize()){//当前一次传输的数据量小于4k边界并且小于最大突发长度
       when(trDesc.isCrossesBoundary(trDesc.len)){//跨越4k地址边界
         trSizeCount := trDesc.get4kBoundarySize
@@ -246,9 +247,12 @@ class xg_axi_dma_write(config : DMA_CONFIG) extends Component {
   io.s_axis_write_des.ready.setAsReg() init True setWhen(fsm.isEntering(fsm.IDLE)) clearWhen(io.s_axis_write_des.valid)
   //数据的接收
   val s2mmLength = RegNextWhen((io.s_axis_write_des.len - 1) >> config.maxSingleBrustSize, io.s_axis_write_des.fire, U(0))
-  val s2mmCount = WaCounter(io.s_axis_s2mm.fire, 14, s2mmLength)
+  val s2mmCount = WaCounter(io.s_axis_s2mm.fire, 20, s2mmLength)
+  when(fsm.isEntering(fsm.IDLE)){
+    s2mmCount.clear
+  }
   //停止数据输入，的判断依据两条，1、接收到last信号，2、已经接收len个数据
-  val continueInput = RegInit(True) setWhen (fsm.isExiting(fsm.IDLE)) clearWhen (s2mmCount.validLast() || (io.s_axis_s2mm.fire && io.s_axis_s2mm.last))
+  val continueInput = RegInit(False) setWhen (fsm.isExiting(fsm.IDLE)) clearWhen (s2mmCount.validLast() || (io.s_axis_s2mm.fire && io.s_axis_s2mm.last))
   io.s_axis_s2mm.continueWhen(continueInput) <> fifo.io.push //如果已经接收了length个数据，或者last信号那么就不在接收
 
   //控制通道的数据发送

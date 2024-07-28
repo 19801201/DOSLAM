@@ -59,7 +59,7 @@ class FastDetection(fastConfig : FastDetectionConfig) extends Component {
     io.mData.payload(0) := light
     io.mData.payload(1) := dark
     //io.mData.valid := Delay(io.sData.valid, 1) && (light || dark)
-    io.mData.valid := Delay(io.sData.valid, 1)
+    io.mData.valid := Delay(io.sData.valid, 1, init = False)
     //io.mData.payload.setAsReg()
     lightCount4.setAsReg()
     darkCount4.setAsReg()

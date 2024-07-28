@@ -68,7 +68,7 @@ class CornerScore(scoreConfig : cornerScoreConfig) extends Component {
     max(max8, max4, 2, 1)
     max(max16, max8,2, 1)//延迟4个周期
     io.mData.payload := (max16(0) - 1).asBits.resized
-    io.mData.valid := Delay(io.sData.valid,4)
+    io.mData.valid := Delay(io.sData.valid,4, init = False)
 }
 
 object CornerScore extends App {

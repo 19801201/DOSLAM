@@ -76,7 +76,6 @@ class ResizeLinear(resizeConfig : ResizeConfig) extends Component{
     fy.init(resizeConfig.initF(0))//每次移动一个单位
     when(io.sData.fire && fsm.colCnt.valid && fsm.rowCnt.valid) { //数据来临的时候需要换到下一个权重，如果在行末，需要重置权重，如果没有数据来临需要保持权重不变
         fy := U(resizeConfig.initF(0), 3 bits)
-        fsm.rowCntValid.clear
     } elsewhen (io.sData.fire && fsm.colCnt.valid) {//到行末，修改值
         switch(fy(2 downto 0)) {
             for (j <- 0 to 4) {
@@ -88,6 +87,10 @@ class ResizeLinear(resizeConfig : ResizeConfig) extends Component{
                 fy := 0
             }
         }
+    }
+
+    when(RegNext(io.sData.fire && fsm.colCnt.valid && fsm.rowCnt.valid) init(False)){
+        fsm.rowCntValid.clear
     }
     //3、数据的选择模块 ------------------
     //根据selFx来选择输入数据,将输入数据存到这里一个周期,后续只做一个11位的加法，时序不太严格,但是这里的数据选择很麻烦，因此还是采用一级流水吧。
@@ -206,7 +209,6 @@ class ResizeLinear(resizeConfig : ResizeConfig) extends Component{
         } otherwise {
             fifo.io.push.payload.subdivideIn(resizeConfig.DATA_SIZE slices)(i) := dataFyMulSum(i).asBits(9 downto 2)
         }
-
     }
     fifo.io.push.valid <> Delay(io.sData.fire && !fsm.rowCntValid.valid, 5)//给定的数据延迟若干个周期
     fifo.io.pop <> io.mData//得到的结果直接传递给外部
