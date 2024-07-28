@@ -1,10 +1,10 @@
 下载ubuntu镜像
 
-查看当前的
+查看当前的应用
 xmutil listapps
 xmutil unloadapp
 
-打开xsct
+打开xsct，生成设备树文件
 hsi open_hw_design C:/myData/data/vivado/orbslamAcc23/debugWorld2/DOSLAM.xsa
 hsi set_repo_path C:/myData/ev/xilinx/device-tree-xlnx
 hsi create_sw_design device-tree -os device_tree -proc psu_cortexa53_0

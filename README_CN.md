@@ -26,7 +26,7 @@ FPGA中的资源占用情况如图：
     - **`example2`**: 提供了一个demo，用于将img中的图像，进行特征提取处理
     - **`driver_DOSLAMDT`**: linux下doslam的设备驱动代码，用于在注册设备文件
     - **`build.sh`**: 加载bits，注册设备树，脚本文件
-    - **`img`**: 提供了一个raw格式图片,用于测试
+    - **`img`**: 提供了一个raw格式图片,存放数据文件，结果也会放到这里
 - **`src/`**: 源代码文件
     - **`main`**: SpinalHDL源代码文件
       - **`data`**: 数据文件
@@ -37,12 +37,14 @@ FPGA中的资源占用情况如图：
 - **`verilog/`**: 源代码文件
     - **`tcl`**: 工程使用的tcl文件
       - **`generateIP.tcl`**: 用于生成代码中使用的ip核的脚本文件
+      - **`design_1.tcl`**: 用于工程使用的bd脚本文件
+      - **`create_project.tcl`**: 用于生成工程的脚本文件
 
 # 运行
 
 ## 生成RTL代码
 
-配置spinalHDL环境即可使用
+配置好spinalHDL环境直接使用即可
 
 ## 运行仿真
 
@@ -51,7 +53,7 @@ FPGA中的资源占用情况如图：
 https://github.com/SpinalHDL/SpinalHDL/pull/664
 
 ## 生成工程
-本工程使用kr260板卡，vivado 2023.2版本。
+本工程使用kr260板卡，vivado 2023.2。
 ./verilog/tcl/create_project.tcl
 tcl脚本用于创建工程，修改如下变量的文件位置和目录。
 
@@ -60,7 +62,7 @@ tcl脚本用于创建工程，修改如下变量的文件位置和目录。
 - ip_script :generateIP.tcl 路径
 - design_block_script:design_1.tcl 路径
 
-然后运行此脚本，自动创建工程。手动生成bit流。
+然后source此脚本，自动创建工程。手动生成bit流。
 
 ## 运行demo
 
@@ -83,4 +85,12 @@ OURPUT_FIRE：将结果输入到文件中
 REPORT：打印报告
 
 生成的结果放置于./doslam/img文件夹下
+
+四层图像金字塔，480*640尺寸图像，运算时间如下(不同阈值下，不同的图像提取到的特征点不同，因此时间不同)
+![img.png](img/img2.png)
+
+# TODO
+
+- 加入实现特征匹配
+- 从软件层面优化orb slam算法，达到实时运行
 
