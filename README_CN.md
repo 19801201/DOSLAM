@@ -74,13 +74,13 @@ TopConfig的TopSort代表最大可以取前TopSort个特征点。
 [create_project.tcl](./verilog/tcl/create_project.tcl)用于创建工程，修改如下变量的文件位置和目录。
 
 - project_dir : 存放工程的位置
-- src_file : top.scala生成的RTL代码top.v的代码路径
-- ip_script : generateIP.tcl 路径
-- design_block_script : design_1.tcl 路径
+- doslam_dir : 当前项目的位置
 
 可以在tcl控制台下source此脚本，创建工程。
 
-综合实现生成bit流。
+综合实现生成bit流，可以用多个策略进行实现避免时序为负。
+
+生成bin格式bit流。
 
 ## 运行demo
 
