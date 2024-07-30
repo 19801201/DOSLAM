@@ -7,17 +7,20 @@
 为了解决以上问题本项目基于FPGA平台，使用很少的资源实现了一个超高性能的orb slam加速器，加速器意在加速orb slam算法中最耗时的特征提取。
 
 本项目使用 SpinalHDL 1.9.3，实现了特征提取和特征匹配中的算子，通过参数配置生成不同的加速器，满足不同的需求。
+
 提供了一个每周期处理8个像素的超高并行度加速器。
 
 提供了设备驱动，设备树文件和demo可在linux环境下直接使用。
 
 ## 描述
 
-本工程实现如下提供一个axi lite接口配置，启动加速器。两个axi接口分别用于传递图片和描述子。
-![img.png](img/img.png)
-
+本工程设计框图如下，Top是我们的加速器，我们的顶层提供一个axi lite接口配置，启动加速器。两个axi接口分别用于传递图片和ORB特征点和描述子。
+![img.png](img/img6.png)
 FPGA中的资源占用情况如图：
 ![img.png](img/img1.png)
+
+系统架构图如图所示：
+![img.png](img/img4.png)
 
 # 目录结构
 
@@ -40,29 +43,41 @@ FPGA中的资源占用情况如图：
         - **`design_1.tcl`**: 用于工程使用的bd脚本文件
         - **`create_project.tcl`**: 用于生成工程的脚本文件
 
-# 运行
+# 运行demo
+
+本项目提供了一个demo可以直接在FPGA板卡上运行，四层图像金字塔检测特征点。
 
 ## 生成RTL代码
 
-配置好spinalHDL环境直接使用即可
+需要安装java，scala，sbt，参考[官方文档](https://spinalhdl.github.io/SpinalDoc-RTD/zh_CN/SpinalHDL/Getting%20Started/Install%20and%20setup.html)
+
+推荐IntelliJ IDEA，配置scala脚本，从外部环境导入工程，参考[官方文档](https://spinalhdl.github.io/SpinalDoc-RTD/zh_CN/SpinalHDL/Getting%20Started/IntelliJ.html)
+
+运行[top.scala](./src/main/scala/top.scala)生成顶层RTL代码。
+
+每个文件都可以单独生成RTL代码。
+
+如果您需要运行更大尺寸的图片请修改TopConfig的MEM_DEPTH代表RAM的最大深度和SIZE_WIDTH图片尺寸的位宽。
+
+TopConfig的TopSort代表最大可以取前TopSort个特征点。
 
 ## 运行仿真
 
-运行仿真需要 vivado2021.2 并且配置环境变量
-参考如下
-https://github.com/SpinalHDL/SpinalHDL/pull/664
+运行仿真需要 vivado2021.2 并且[配置环境变量](https://github.com/SpinalHDL/SpinalHDL/pull/664)
 
 ## 生成工程
 本工程使用kr260板卡，vivado 2023.2。
-./verilog/tcl/create_project.tcl
-tcl脚本用于创建工程，修改如下变量的文件位置和目录。
+
+[create_project.tcl](./verilog/tcl/create_project.tcl)用于创建工程，修改如下变量的文件位置和目录。
 
 - project_dir : 存放工程的位置
-- src_file : 顶层代码路径
-- ip_script :generateIP.tcl 路径
-- design_block_script:design_1.tcl 路径
+- src_file : top.scala生成的RTL代码top.v的代码路径
+- ip_script : generateIP.tcl 路径
+- design_block_script : design_1.tcl 路径
 
-然后source此脚本，自动创建工程。手动生成bit流。
+可以在tcl控制台下source此脚本，创建工程。
+
+综合实现生成bit流。
 
 ## 运行demo
 
@@ -80,17 +95,26 @@ make
 ./main
 ```
 
-./doslam/example2/main.c文件中存在两个宏定义
+四层图像金字塔，480*640尺寸图像，运算时间如下(不同阈值下，不同的图像提取到的特征点不同，因此时间不同)
+
+![img.png](img/img2.png)
+
+开启[example2/main.c](./doslam/example2/main.c)文件中两个宏定义，
 OURPUT_FIRE：将结果输入到文件中
 REPORT：打印报告
 
-生成的结果放置于./doslam/img文件夹下
+生成的结果放置于./doslam/img文件夹下，并打印报告。
 
-四层图像金字塔，480*640尺寸图像，运算时间如下(不同阈值下，不同的图像提取到的特征点不同，因此时间不同)
-![img.png](img/img2.png)
+复制img中的文件，放置于showDemo目录下，在本机运行[show.py](./doslam/showDemo/show.py)
+结果如下
+![img.png](img/img3.png)
 
 # TODO
 
 - 加入实现特征匹配
 - 从软件层面优化orb slam算法，达到实时运行
+- 开源参考模型
+
+# 联系我
+邮箱:cqyinsist@qq.com
 
