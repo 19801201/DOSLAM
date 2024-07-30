@@ -46,7 +46,7 @@ catch { config_ip_cache -export [get_ips -all design_1_smartconnect_1_0] }
 
 export_ip_user_files -of_objects [get_files "${project_dir}/DOSLAM.srcs/sources_1/bd/design_1/design_1.bd"] -no_script -sync -force -quiet
 
-//生成顶层
+# 生成顶层
 
 make_wrapper -files [get_files "${project_dir}/DOSLAM.srcs/sources_1/bd/design_1/design_1.bd"] -top
 add_files -norecurse "${project_dir}/DOSLAM.gen/sources_1/bd/design_1/hdl/design_1_wrapper.v"

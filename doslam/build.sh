@@ -11,7 +11,6 @@ make
 # modinfo doslam2.ko
 #挂载文件
 # sudo rmmod doslam2.ko
-make 
 sudo insmod doslam2.ko
 
 sudo chmod +777 /dev/DOSLAM_data
