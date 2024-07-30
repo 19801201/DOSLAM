@@ -133,7 +133,7 @@ void init_user_data(doslam_ioctl_data *user_data){
     user_data->sizeInRow = 480;
     user_data->sizeInCol = 640;
     user_data->threshold = 30;
-    user_data->topNum = 200;
+    user_data->topNum = 256;
     user_data->thresholdInit = -1;
     user_data->dmaImageReadAddr = 0;
     user_data->dmaImageWriteAddr = 0x4B400;
@@ -143,7 +143,7 @@ void init_user_data(doslam_ioctl_data *user_data){
 void next_user_data(doslam_ioctl_data *user_data){
     user_data->sizeInRow = user_data->sizeOutRow;
     user_data->sizeInCol = user_data->sizeOutCol;
-
+    user_data->topNum = user_data->topNum * 4 / 5;
     uint32_t temp = user_data->dmaImageReadAddr;
     user_data->dmaImageReadAddr = user_data->dmaImageWriteAddr;
     user_data->dmaImageWriteAddr = temp;
@@ -166,7 +166,7 @@ void work(doslam_ioctl_data *user_data){
     #ifdef OURPUT_FIRE
         sprintf(str, "/home/ubuntu/doslam/img/1_r%d_c%d.raw", user_data->sizeOutRow, (user_data->sizeOutCol+7)/8*8);
         saveToFile(str, (void *)(doslam_image + user_data->dmaImageWriteAddr), user_data->sizeOutRow * (((user_data->sizeOutCol+7)/8)*8));
-        sprintf(str, "/home/ubuntu/doslam/img/1_r%d_c%d.raw.data", user_data->sizeInRow, user_data->sizeInCol);
+        sprintf(str, "/home/ubuntu/doslam/img/1_r%d_c%d.raw.data", user_data->sizeInRow, (user_data->sizeInCol+7)/8*8);
         saveToFile(str, (void *)(doslam_result + user_data->dmaOrbWriteAddr - IMAGE_LENGTH), user_data->outputLength * 64);
     #endif
 
@@ -197,7 +197,7 @@ int main()
     int rows = 480;
     int cols = 640;
 
-    readRawImage("/home/ubuntu/doslam/img/1.raw", doslam_image, rows*cols);
+    readRawImage("/home/ubuntu/doslam/img/1_r480_c640.raw", doslam_image, rows*cols);
 
     int res;
 
@@ -209,7 +209,7 @@ int main()
 
     unsigned long end_time_0 = get_time_us();
 
-    
+
     next_user_data(&user_data);
     work(&user_data);
     // report(&user_data);
@@ -236,12 +236,7 @@ int main()
 
 
     // 打印结果
-    printf("Elapsed time: 1:%lu 2:%lu 3:%lu 4:%lu  total:%lu us\n", end_time_0 -  start_time, end_time_1 -  end_time_0, end_time_2 -  end_time_1, end_time_3 - end_time_2, elapsed_time);
-
-
-    //saveToFile("/home/ubuntu/doslam/img/2.raw", (void *)(doslam_image + user_data.dmaImageWriteAddr), user_data.sizeOutRow * user_data.sizeOutCol);
-    //saveToFile("/home/ubuntu/doslam/img/1.raw.data", (void *)(doslam_result), 64 * user_data.outputLength);
-
+    printf("Elapsed time: Image Pyramid 1:%lu us    Image Pyramid 2:%lu us    Image Pyramid 3:%lu us    Image Pyramid 4:%lu us    total:%lu us\n", end_time_0 -  start_time, end_time_1 -  end_time_0, end_time_2 -  end_time_1, end_time_3 - end_time_2, elapsed_time);
 
     return 0;
 }
