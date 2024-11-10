@@ -21,7 +21,7 @@ The resource occupancy in the FPGA is shown in Fig:
 The system architecture diagram is shown in Fig:
 ![img.png](img/img4.png)
 
-# 目录结构
+# directory structure
 
 - **`doslam/`**: Device driver, demo
     - **`DOSLAM`**: Directory for storing bin format bitstream and device tree
@@ -111,13 +111,6 @@ Copy the files from the img folder and place them in the showDemo directory. Run
 The result is as shown below:
 
 ![img.png](img/img3.png)
-
-# TODO
-
-- 完善分块特征提取使特征提取更加均匀
-- 加入实现特征匹配
-- 从软件层面优化orb slam算法，达到实时运行
-- 开源参考模型
 
 # TODO
 
